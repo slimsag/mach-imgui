@@ -30,5 +30,5 @@ const c = @cImport({
     @cInclude("stdarg.h");
 });
 pub const backends = struct {
-    pub const mach = @import("imgui_mach.zig");
+    pub const mach = @import("ImGui.zig");
 };
