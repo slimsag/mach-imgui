@@ -30,11 +30,11 @@ const c = @cImport({
     @cInclude("stdarg.h");
 });
 pub const backends = struct {
-    pub const mach = @import("imgui_mach.zig");
+    pub const mach = @import("ImGui.zig");
 };
 
-pub const VERSION = "1.90.0";
-pub const VERSION_NUM = 19000;
+pub const VERSION = "1.90.5";
+pub const VERSION_NUM = 19050;
 pub const PAYLOAD_TYPE_COLOR_3F = "_COL3F";   // float[3]: Standard type for colors, without alpha. User code may use this type.
 pub const PAYLOAD_TYPE_COLOR_4F = "_COL4F";   // float[4]: Standard type for colors. User code may use this type.
 pub const UNICODE_CODEPOINT_INVALID = 0xFFFD; // Invalid Unicode code point (standard value).
@@ -76,7 +76,7 @@ pub const WindowFlags_NoNav = 196608;
 pub const WindowFlags_NoDecoration = 43;
 pub const WindowFlags_NoInputs = 197120;
 // [Internal]
-pub const WindowFlags_NavFlattened = 8388608;            // [BETA] On child window: allow gamepad/keyboard navigation to cross over parent border to this child or between sibling child windows.
+pub const WindowFlags_NavFlattened = 8388608;            // [BETA] On child window: share focus scope, allow gamepad/keyboard navigation to cross over parent border to this child or between sibling child windows.
 pub const WindowFlags_ChildWindow = 16777216;            // Don't use! For internal use by BeginChild()
 pub const WindowFlags_Tooltip = 33554432;                // Don't use! For internal use by BeginTooltip()
 pub const WindowFlags_Popup = 67108864;                  // Don't use! For internal use by BeginPopup()
@@ -84,7 +84,7 @@ pub const WindowFlags_Modal = 134217728;                 // Don't use! For inter
 pub const WindowFlags_ChildMenu = 268435456;             // Don't use! For internal use by BeginMenu()
 
 // Flags for ImGui::BeginChild()
-// (Legacy: bot 0 must always correspond to ImGuiChildFlags_Border to be backward compatible with old API using 'bool border = false'.
+// (Legacy: bit 0 must always correspond to ImGuiChildFlags_Border to be backward compatible with old API using 'bool border = false'.
 // About using AutoResizeX/AutoResizeY flags:
 // - May be combined with SetNextWindowSizeConstraints() to set a min/max size for each axis (see "Demo->Child->Auto-resize with Constraints").
 // - Size measurement for a given axis is only performed when the child window is within visible boundaries, or is just appearing.
@@ -93,7 +93,7 @@ pub const WindowFlags_ChildMenu = 268435456;             // Don't use! For inter
 //   - You may also use ImGuiChildFlags_AlwaysAutoResize to force an update even when child window is not in view.
 //     HOWEVER PLEASE UNDERSTAND THAT DOING SO WILL PREVENT BeginChild() FROM EVER RETURNING FALSE, disabling benefits of coarse clipping.
 pub const ChildFlags_None = 0;
-pub const ChildFlags_Border = 1;                 // Show an outer border and enable WindowPadding. (Important: this is always == 1 == true for legacy reason)
+pub const ChildFlags_Border = 1;                 // Show an outer border and enable WindowPadding. (IMPORTANT: this is always == 1 == true for legacy reason)
 pub const ChildFlags_AlwaysUseWindowPadding = 2; // Pad with style.WindowPadding even if no border are drawn (no padding by default for non-bordered child windows because it makes more sense)
 pub const ChildFlags_ResizeX = 4;                // Allow resize from right border (layout direction). Enable .ini saving (unless ImGuiWindowFlags_NoSavedSettings passed to window flags)
 pub const ChildFlags_ResizeY = 8;                // Allow resize from bottom border (layout direction). "
@@ -144,28 +144,30 @@ pub const TreeNodeFlags_SpanAvailWidth = 2048;        // Extend hit box to the r
 pub const TreeNodeFlags_SpanFullWidth = 4096;         // Extend hit box to the left-most and right-most edges (bypass the indented area).
 pub const TreeNodeFlags_SpanAllColumns = 8192;        // Frame will span all columns of its container table (text will still fit in current column)
 pub const TreeNodeFlags_NavLeftJumpsBackHere = 16384; // (WIP) Nav: left direction may move to this TreeNode() from any of its child (items submitted between TreeNode and TreePop)
-//ImGuiTreeNodeFlags_NoScrollOnOpen     = 1 << 14,  // FIXME: TODO: Disable automatic scroll on TreePop() if node got just open and contents is not visible
+//ImGuiTreeNodeFlags_NoScrollOnOpen     = 1 << 15,  // FIXME: TODO: Disable automatic scroll on TreePop() if node got just open and contents is not visible
 pub const TreeNodeFlags_CollapsingHeader = 26;
 
 // Flags for OpenPopup*(), BeginPopupContext*(), IsPopupOpen() functions.
-// - To be backward compatible with older API which took an 'int mouse_button = 1' argument, we need to treat
-//   small flags values as a mouse button index, so we encode the mouse button in the first few bits of the flags.
+// - To be backward compatible with older API which took an 'int mouse_button = 1' argument instead of 'ImGuiPopupFlags flags',
+//   we need to treat small flags values as a mouse button index, so we encode the mouse button in the first few bits of the flags.
 //   It is therefore guaranteed to be legal to pass a mouse button index in ImGuiPopupFlags.
 // - For the same reason, we exceptionally default the ImGuiPopupFlags argument of BeginPopupContextXXX functions to 1 instead of 0.
 //   IMPORTANT: because the default parameter is 1 (==ImGuiPopupFlags_MouseButtonRight), if you rely on the default parameter
 //   and want to use another flag, you need to pass in the ImGuiPopupFlags_MouseButtonRight flag explicitly.
 // - Multiple buttons currently cannot be combined/or-ed in those functions (we could allow it later).
 pub const PopupFlags_None = 0;
-pub const PopupFlags_MouseButtonLeft = 0;          // For BeginPopupContext*(): open on Left Mouse release. Guaranteed to always be == 0 (same as ImGuiMouseButton_Left)
-pub const PopupFlags_MouseButtonRight = 1;         // For BeginPopupContext*(): open on Right Mouse release. Guaranteed to always be == 1 (same as ImGuiMouseButton_Right)
-pub const PopupFlags_MouseButtonMiddle = 2;        // For BeginPopupContext*(): open on Middle Mouse release. Guaranteed to always be == 2 (same as ImGuiMouseButton_Middle)
+pub const PopupFlags_MouseButtonLeft = 0;           // For BeginPopupContext*(): open on Left Mouse release. Guaranteed to always be == 0 (same as ImGuiMouseButton_Left)
+pub const PopupFlags_MouseButtonRight = 1;          // For BeginPopupContext*(): open on Right Mouse release. Guaranteed to always be == 1 (same as ImGuiMouseButton_Right)
+pub const PopupFlags_MouseButtonMiddle = 2;         // For BeginPopupContext*(): open on Middle Mouse release. Guaranteed to always be == 2 (same as ImGuiMouseButton_Middle)
 pub const PopupFlags_MouseButtonMask_ = 31;
 pub const PopupFlags_MouseButtonDefault_ = 1;
-pub const PopupFlags_NoOpenOverExistingPopup = 32; // For OpenPopup*(), BeginPopupContext*(): don't open if there's already a popup at the same level of the popup stack
-pub const PopupFlags_NoOpenOverItems = 64;         // For BeginPopupContextWindow(): don't return true when hovering items, only when hovering empty space
-pub const PopupFlags_AnyPopupId = 128;             // For IsPopupOpen(): ignore the ImGuiID parameter and test for any popup.
-pub const PopupFlags_AnyPopupLevel = 256;          // For IsPopupOpen(): search/test at any level of the popup stack (default test in the current level)
-pub const PopupFlags_AnyPopup = 384;
+pub const PopupFlags_NoReopen = 32;                 // For OpenPopup*(), BeginPopupContext*(): don't reopen same popup if already open (won't reposition, won't reinitialize navigation)
+//ImGuiPopupFlags_NoReopenAlwaysNavInit = 1 << 6,   // For OpenPopup*(), BeginPopupContext*(): focus and initialize navigation even when not reopening.
+pub const PopupFlags_NoOpenOverExistingPopup = 128; // For OpenPopup*(), BeginPopupContext*(): don't open if there's already a popup at the same level of the popup stack
+pub const PopupFlags_NoOpenOverItems = 256;         // For BeginPopupContextWindow(): don't return true when hovering items, only when hovering empty space
+pub const PopupFlags_AnyPopupId = 1024;             // For IsPopupOpen(): ignore the ImGuiID parameter and test for any popup.
+pub const PopupFlags_AnyPopupLevel = 2048;          // For IsPopupOpen(): search/test at any level of the popup stack (default test in the current level)
+pub const PopupFlags_AnyPopup = 3072;
 
 // Flags for ImGui::Selectable()
 pub const SelectableFlags_None = 0;
@@ -192,7 +194,7 @@ pub const TabBarFlags_None = 0;
 pub const TabBarFlags_Reorderable = 1;                  // Allow manually dragging tabs to re-order them + New tabs are appended at the end of list
 pub const TabBarFlags_AutoSelectNewTabs = 2;            // Automatically select new tabs when they appear
 pub const TabBarFlags_TabListPopupButton = 4;           // Disable buttons to open the tab list popup
-pub const TabBarFlags_NoCloseWithMiddleMouseButton = 8; // Disable behavior of closing tabs (that are submitted with p_open != NULL) with middle mouse button. You can still repro this behavior on user's side with if (IsItemHovered() && IsMouseClicked(2)) *p_open = false.
+pub const TabBarFlags_NoCloseWithMiddleMouseButton = 8; // Disable behavior of closing tabs (that are submitted with p_open != NULL) with middle mouse button. You may handle this behavior manually on user's side with if (IsItemHovered() && IsMouseClicked(2)) *p_open = false.
 pub const TabBarFlags_NoTabListScrollingButtons = 16;   // Disable scrolling buttons (apply when fitting policy is ImGuiTabBarFlags_FittingPolicyScroll)
 pub const TabBarFlags_NoTooltip = 32;                   // Disable tooltips when hovering a tab
 pub const TabBarFlags_FittingPolicyResizeDown = 64;     // Resize tabs when they don't fit
@@ -202,135 +204,15 @@ pub const TabBarFlags_FittingPolicyDefault_ = 64;
 
 // Flags for ImGui::BeginTabItem()
 pub const TabItemFlags_None = 0;
-pub const TabItemFlags_UnsavedDocument = 1;              // Display a dot next to the title + tab is selected when clicking the X + closure is not assumed (will wait for user to stop submitting the tab). Otherwise closure is assumed when pressing the X, so if you keep submitting the tab may reappear at end of tab bar.
+pub const TabItemFlags_UnsavedDocument = 1;              // Display a dot next to the title + set ImGuiTabItemFlags_NoAssumedClosure.
 pub const TabItemFlags_SetSelected = 2;                  // Trigger flag to programmatically make the tab selected when calling BeginTabItem()
-pub const TabItemFlags_NoCloseWithMiddleMouseButton = 4; // Disable behavior of closing tabs (that are submitted with p_open != NULL) with middle mouse button. You can still repro this behavior on user's side with if (IsItemHovered() && IsMouseClicked(2)) *p_open = false.
-pub const TabItemFlags_NoPushId = 8;                     // Don't call PushID(tab->ID)/PopID() on BeginTabItem()/EndTabItem()
+pub const TabItemFlags_NoCloseWithMiddleMouseButton = 4; // Disable behavior of closing tabs (that are submitted with p_open != NULL) with middle mouse button. You may handle this behavior manually on user's side with if (IsItemHovered() && IsMouseClicked(2)) *p_open = false.
+pub const TabItemFlags_NoPushId = 8;                     // Don't call PushID()/PopID() on BeginTabItem()/EndTabItem()
 pub const TabItemFlags_NoTooltip = 16;                   // Disable tooltip for the given tab
 pub const TabItemFlags_NoReorder = 32;                   // Disable reordering this tab or having another tab cross over this tab
 pub const TabItemFlags_Leading = 64;                     // Enforce the tab position to the left of the tab bar (after the tab list popup button)
 pub const TabItemFlags_Trailing = 128;                   // Enforce the tab position to the right of the tab bar (before the scrolling buttons)
-
-// Flags for ImGui::BeginTable()
-// - Important! Sizing policies have complex and subtle side effects, much more so than you would expect.
-//   Read comments/demos carefully + experiment with live demos to get acquainted with them.
-// - The DEFAULT sizing policies are:
-//    - Default to ImGuiTableFlags_SizingFixedFit    if ScrollX is on, or if host window has ImGuiWindowFlags_AlwaysAutoResize.
-//    - Default to ImGuiTableFlags_SizingStretchSame if ScrollX is off.
-// - When ScrollX is off:
-//    - Table defaults to ImGuiTableFlags_SizingStretchSame -> all Columns defaults to ImGuiTableColumnFlags_WidthStretch with same weight.
-//    - Columns sizing policy allowed: Stretch (default), Fixed/Auto.
-//    - Fixed Columns (if any) will generally obtain their requested width (unless the table cannot fit them all).
-//    - Stretch Columns will share the remaining width according to their respective weight.
-//    - Mixed Fixed/Stretch columns is possible but has various side-effects on resizing behaviors.
-//      The typical use of mixing sizing policies is: any number of LEADING Fixed columns, followed by one or two TRAILING Stretch columns.
-//      (this is because the visible order of columns have subtle but necessary effects on how they react to manual resizing).
-// - When ScrollX is on:
-//    - Table defaults to ImGuiTableFlags_SizingFixedFit -> all Columns defaults to ImGuiTableColumnFlags_WidthFixed
-//    - Columns sizing policy allowed: Fixed/Auto mostly.
-//    - Fixed Columns can be enlarged as needed. Table will show a horizontal scrollbar if needed.
-//    - When using auto-resizing (non-resizable) fixed columns, querying the content width to use item right-alignment e.g. SetNextItemWidth(-FLT_MIN) doesn't make sense, would create a feedback loop.
-//    - Using Stretch columns OFTEN DOES NOT MAKE SENSE if ScrollX is on, UNLESS you have specified a value for 'inner_width' in BeginTable().
-//      If you specify a value for 'inner_width' then effectively the scrolling space is known and Stretch or mixed Fixed/Stretch columns become meaningful again.
-// - Read on documentation at the top of imgui_tables.cpp for details.
-// Features
-pub const TableFlags_None = 0;
-pub const TableFlags_Resizable = 1;                      // Enable resizing columns.
-pub const TableFlags_Reorderable = 2;                    // Enable reordering columns in header row (need calling TableSetupColumn() + TableHeadersRow() to display headers)
-pub const TableFlags_Hideable = 4;                       // Enable hiding/disabling columns in context menu.
-pub const TableFlags_Sortable = 8;                       // Enable sorting. Call TableGetSortSpecs() to obtain sort specs. Also see ImGuiTableFlags_SortMulti and ImGuiTableFlags_SortTristate.
-pub const TableFlags_NoSavedSettings = 16;               // Disable persisting columns order, width and sort settings in the .ini file.
-pub const TableFlags_ContextMenuInBody = 32;             // Right-click on columns body/contents will display table context menu. By default it is available in TableHeadersRow().
-// Decorations
-pub const TableFlags_RowBg = 64;                         // Set each RowBg color with ImGuiCol_TableRowBg or ImGuiCol_TableRowBgAlt (equivalent of calling TableSetBgColor with ImGuiTableBgFlags_RowBg0 on each row manually)
-pub const TableFlags_BordersInnerH = 128;                // Draw horizontal borders between rows.
-pub const TableFlags_BordersOuterH = 256;                // Draw horizontal borders at the top and bottom.
-pub const TableFlags_BordersInnerV = 512;                // Draw vertical borders between columns.
-pub const TableFlags_BordersOuterV = 1024;               // Draw vertical borders on the left and right sides.
-pub const TableFlags_BordersH = 384;                     // Draw horizontal borders.
-pub const TableFlags_BordersV = 1536;                    // Draw vertical borders.
-pub const TableFlags_BordersInner = 640;                 // Draw inner borders.
-pub const TableFlags_BordersOuter = 1280;                // Draw outer borders.
-pub const TableFlags_Borders = 1920;                     // Draw all borders.
-pub const TableFlags_NoBordersInBody = 2048;             // [ALPHA] Disable vertical borders in columns Body (borders will always appear in Headers). -> May move to style
-pub const TableFlags_NoBordersInBodyUntilResize = 4096;  // [ALPHA] Disable vertical borders in columns Body until hovered for resize (borders will always appear in Headers). -> May move to style
-// Sizing Policy (read above for defaults)
-pub const TableFlags_SizingFixedFit = 8192;              // Columns default to _WidthFixed or _WidthAuto (if resizable or not resizable), matching contents width.
-pub const TableFlags_SizingFixedSame = 16384;            // Columns default to _WidthFixed or _WidthAuto (if resizable or not resizable), matching the maximum contents width of all columns. Implicitly enable ImGuiTableFlags_NoKeepColumnsVisible.
-pub const TableFlags_SizingStretchProp = 24576;          // Columns default to _WidthStretch with default weights proportional to each columns contents widths.
-pub const TableFlags_SizingStretchSame = 32768;          // Columns default to _WidthStretch with default weights all equal, unless overridden by TableSetupColumn().
-// Sizing Extra Options
-pub const TableFlags_NoHostExtendX = 65536;              // Make outer width auto-fit to columns, overriding outer_size.x value. Only available when ScrollX/ScrollY are disabled and Stretch columns are not used.
-pub const TableFlags_NoHostExtendY = 131072;             // Make outer height stop exactly at outer_size.y (prevent auto-extending table past the limit). Only available when ScrollX/ScrollY are disabled. Data below the limit will be clipped and not visible.
-pub const TableFlags_NoKeepColumnsVisible = 262144;      // Disable keeping column always minimally visible when ScrollX is off and table gets too small. Not recommended if columns are resizable.
-pub const TableFlags_PreciseWidths = 524288;             // Disable distributing remainder width to stretched columns (width allocation on a 100-wide table with 3 columns: Without this flag: 33,33,34. With this flag: 33,33,33). With larger number of columns, resizing will appear to be less smooth.
-// Clipping
-pub const TableFlags_NoClip = 1048576;                   // Disable clipping rectangle for every individual columns (reduce draw command count, items will be able to overflow into other columns). Generally incompatible with TableSetupScrollFreeze().
-// Padding
-pub const TableFlags_PadOuterX = 2097152;                // Default if BordersOuterV is on. Enable outermost padding. Generally desirable if you have headers.
-pub const TableFlags_NoPadOuterX = 4194304;              // Default if BordersOuterV is off. Disable outermost padding.
-pub const TableFlags_NoPadInnerX = 8388608;              // Disable inner padding between columns (double inner padding if BordersOuterV is on, single inner padding if BordersOuterV is off).
-// Scrolling
-pub const TableFlags_ScrollX = 16777216;                 // Enable horizontal scrolling. Require 'outer_size' parameter of BeginTable() to specify the container size. Changes default sizing policy. Because this creates a child window, ScrollY is currently generally recommended when using ScrollX.
-pub const TableFlags_ScrollY = 33554432;                 // Enable vertical scrolling. Require 'outer_size' parameter of BeginTable() to specify the container size.
-// Sorting
-pub const TableFlags_SortMulti = 67108864;               // Hold shift when clicking headers to sort on multiple column. TableGetSortSpecs() may return specs where (SpecsCount > 1).
-pub const TableFlags_SortTristate = 134217728;           // Allow no sorting, disable default sorting. TableGetSortSpecs() may return specs where (SpecsCount == 0).
-// Miscellaneous
-pub const TableFlags_HighlightHoveredColumn = 268435456; // Highlight column headers when hovered (may evolve into a fuller highlight)
-// [Internal] Combinations and masks
-pub const TableFlags_SizingMask_ = 57344;
-
-// Flags for ImGui::TableSetupColumn()
-// Input configuration flags
-pub const TableColumnFlags_None = 0;
-pub const TableColumnFlags_Disabled = 1;                 // Overriding/master disable flag: hide column, won't show in context menu (unlike calling TableSetColumnEnabled() which manipulates the user accessible state)
-pub const TableColumnFlags_DefaultHide = 2;              // Default as a hidden/disabled column.
-pub const TableColumnFlags_DefaultSort = 4;              // Default as a sorting column.
-pub const TableColumnFlags_WidthStretch = 8;             // Column will stretch. Preferable with horizontal scrolling disabled (default if table sizing policy is _SizingStretchSame or _SizingStretchProp).
-pub const TableColumnFlags_WidthFixed = 16;              // Column will not stretch. Preferable with horizontal scrolling enabled (default if table sizing policy is _SizingFixedFit and table is resizable).
-pub const TableColumnFlags_NoResize = 32;                // Disable manual resizing.
-pub const TableColumnFlags_NoReorder = 64;               // Disable manual reordering this column, this will also prevent other columns from crossing over this column.
-pub const TableColumnFlags_NoHide = 128;                 // Disable ability to hide/disable this column.
-pub const TableColumnFlags_NoClip = 256;                 // Disable clipping for this column (all NoClip columns will render in a same draw command).
-pub const TableColumnFlags_NoSort = 512;                 // Disable ability to sort on this field (even if ImGuiTableFlags_Sortable is set on the table).
-pub const TableColumnFlags_NoSortAscending = 1024;       // Disable ability to sort in the ascending direction.
-pub const TableColumnFlags_NoSortDescending = 2048;      // Disable ability to sort in the descending direction.
-pub const TableColumnFlags_NoHeaderLabel = 4096;         // TableHeadersRow() will not submit horizontal label for this column. Convenient for some small columns. Name will still appear in context menu or in angled headers.
-pub const TableColumnFlags_NoHeaderWidth = 8192;         // Disable header text width contribution to automatic column width.
-pub const TableColumnFlags_PreferSortAscending = 16384;  // Make the initial sort direction Ascending when first sorting on this column (default).
-pub const TableColumnFlags_PreferSortDescending = 32768; // Make the initial sort direction Descending when first sorting on this column.
-pub const TableColumnFlags_IndentEnable = 65536;         // Use current Indent value when entering cell (default for column 0).
-pub const TableColumnFlags_IndentDisable = 131072;       // Ignore current Indent value when entering cell (default for columns > 0). Indentation changes _within_ the cell will still be honored.
-pub const TableColumnFlags_AngledHeader = 262144;        // TableHeadersRow() will submit an angled header row for this column. Note this will add an extra row.
-// Output status flags, read-only via TableGetColumnFlags()
-pub const TableColumnFlags_IsEnabled = 16777216;         // Status: is enabled == not hidden by user/api (referred to as "Hide" in _DefaultHide and _NoHide) flags.
-pub const TableColumnFlags_IsVisible = 33554432;         // Status: is visible == is enabled AND not clipped by scrolling.
-pub const TableColumnFlags_IsSorted = 67108864;          // Status: is currently part of the sort specs
-pub const TableColumnFlags_IsHovered = 134217728;        // Status: is hovered by mouse
-// [Internal] Combinations and masks
-pub const TableColumnFlags_WidthMask_ = 24;
-pub const TableColumnFlags_IndentMask_ = 196608;
-pub const TableColumnFlags_StatusMask_ = 251658240;
-pub const TableColumnFlags_NoDirectResize_ = 1073741824; // [Internal] Disable user resizing this column directly (it may however we resized indirectly from its left edge)
-
-// Flags for ImGui::TableNextRow()
-pub const TableRowFlags_None = 0;
-pub const TableRowFlags_Headers = 1; // Identify header row (set default background color + width of its contents accounted differently for auto column width)
-
-// Enum for ImGui::TableSetBgColor()
-// Background colors are rendering in 3 layers:
-//  - Layer 0: draw with RowBg0 color if set, otherwise draw with ColumnBg0 if set.
-//  - Layer 1: draw with RowBg1 color if set, otherwise draw with ColumnBg1 if set.
-//  - Layer 2: draw with CellBg color if set.
-// The purpose of the two row/columns layers is to let you decide if a background color change should override or blend with the existing color.
-// When using ImGuiTableFlags_RowBg on the table, each row has the RowBg0 color automatically set for odd/even rows.
-// If you set the color of RowBg0 target, your color will override the existing RowBg0 color.
-// If you set the color of RowBg1 or ColumnBg1 target, your color will blend over the RowBg0 color.
-pub const TableBgTarget_None = 0;
-pub const TableBgTarget_RowBg0 = 1; // Set row background color 0 (generally used for background, automatically set when ImGuiTableFlags_RowBg is used)
-pub const TableBgTarget_RowBg1 = 2; // Set row background color 1 (generally used for selection marking)
-pub const TableBgTarget_CellBg = 3; // Set cell background color (top-most color)
+pub const TabItemFlags_NoAssumedClosure = 256;           // Tab is selected when trying to close + closure is not immediately assumed (will wait for user to stop submitting the tab). Otherwise closure is assumed when pressing the X, so if you keep submitting the tab may reappear at end of tab bar.
 
 // Flags for ImGui::IsWindowFocused()
 pub const FocusedFlags_None = 0;
@@ -422,6 +304,7 @@ pub const SortDirection_Descending = 2; // Descending = 9->0, Z->A etc.
 // Since >= 1.89 we increased typing (went from int to enum), some legacy code may need a cast to ImGuiKey.
 // Read details about the 1.87 and 1.89 transition : https://github.com/ocornut/imgui/issues/4921
 // Note that "Keys" related to physical keys and are not the same concept as input "Characters", the later are submitted via io.AddInputCharacter().
+// The keyboard key enum values are named after the keys on a standard US keyboard, and on other keyboard types the keys reported may not match the keycaps.
 // Keyboard
 pub const Key_None = 0;
 pub const Key_Tab = 512;                 // == ImGuiKey_NamedKey_BEGIN
@@ -638,15 +521,15 @@ pub const Col_BorderShadow = 6;
 pub const Col_FrameBg = 7;                // Background of checkbox, radio button, plot, slider, text input
 pub const Col_FrameBgHovered = 8;
 pub const Col_FrameBgActive = 9;
-pub const Col_TitleBg = 10;
-pub const Col_TitleBgActive = 11;
-pub const Col_TitleBgCollapsed = 12;
+pub const Col_TitleBg = 10;               // Title bar
+pub const Col_TitleBgActive = 11;         // Title bar when focused
+pub const Col_TitleBgCollapsed = 12;      // Title bar when collapsed
 pub const Col_MenuBarBg = 13;
 pub const Col_ScrollbarBg = 14;
 pub const Col_ScrollbarGrab = 15;
 pub const Col_ScrollbarGrabHovered = 16;
 pub const Col_ScrollbarGrabActive = 17;
-pub const Col_CheckMark = 18;
+pub const Col_CheckMark = 18;             // Checkbox tick and RadioButton circle
 pub const Col_SliderGrab = 19;
 pub const Col_SliderGrabActive = 20;
 pub const Col_Button = 21;
@@ -687,8 +570,9 @@ pub const Col_COUNT = 53;
 // - The enum only refers to fields of ImGuiStyle which makes sense to be pushed/popped inside UI code.
 //   During initialization or between frames, feel free to just poke into ImGuiStyle directly.
 // - Tip: Use your programming IDE navigation facilities on the names in the _second column_ below to find the actual members and their description.
-//   In Visual Studio IDE: CTRL+comma ("Edit.GoToAll") can follow symbols in comments, whereas CTRL+F12 ("Edit.GoToImplementation") cannot.
-//   With Visual Assist installed: ALT+G ("VAssistX.GoToImplementation") can also follow symbols in comments.
+//   - In Visual Studio: CTRL+comma ("Edit.GoToAll") can follow symbols inside comments, whereas CTRL+F12 ("Edit.GoToImplementation") cannot.
+//   - In Visual Studio w/ Visual Assist installed: ALT+G ("VAssistX.GoToImplementation") can also follow symbols inside comments.
+//   - In VS Code, CLion, etc.: CTRL+click can follow symbols inside comments.
 // - When changing this enum, you need to update the associated internal table GStyleVarInfo[] accordingly. This is where we link enum values to members offset/type.
 // Enum name --------------------- // Member in ImGuiStyle structure (see ImGuiStyle for descriptions)
 pub const StyleVar_Alpha = 0;                    // float     Alpha
@@ -714,13 +598,15 @@ pub const StyleVar_ScrollbarRounding = 19;       // float     ScrollbarRounding
 pub const StyleVar_GrabMinSize = 20;             // float     GrabMinSize
 pub const StyleVar_GrabRounding = 21;            // float     GrabRounding
 pub const StyleVar_TabRounding = 22;             // float     TabRounding
-pub const StyleVar_TabBarBorderSize = 23;        // float     TabBarBorderSize
-pub const StyleVar_ButtonTextAlign = 24;         // ImVec2    ButtonTextAlign
-pub const StyleVar_SelectableTextAlign = 25;     // ImVec2    SelectableTextAlign
-pub const StyleVar_SeparatorTextBorderSize = 26; // float  SeparatorTextBorderSize
-pub const StyleVar_SeparatorTextAlign = 27;      // ImVec2    SeparatorTextAlign
-pub const StyleVar_SeparatorTextPadding = 28;    // ImVec2    SeparatorTextPadding
-pub const StyleVar_COUNT = 29;
+pub const StyleVar_TabBorderSize = 23;           // float     TabBorderSize
+pub const StyleVar_TabBarBorderSize = 24;        // float     TabBarBorderSize
+pub const StyleVar_TableAngledHeadersAngle = 25; // float  TableAngledHeadersAngle
+pub const StyleVar_ButtonTextAlign = 26;         // ImVec2    ButtonTextAlign
+pub const StyleVar_SelectableTextAlign = 27;     // ImVec2    SelectableTextAlign
+pub const StyleVar_SeparatorTextBorderSize = 28; // float  SeparatorTextBorderSize
+pub const StyleVar_SeparatorTextAlign = 29;      // ImVec2    SeparatorTextAlign
+pub const StyleVar_SeparatorTextPadding = 30;    // ImVec2    SeparatorTextPadding
+pub const StyleVar_COUNT = 31;
 
 // Flags for InvisibleButton() [extended in imgui_internal.h]
 pub const ButtonFlags_None = 0;
@@ -806,7 +692,7 @@ pub const MouseSource_TouchScreen = 1; // Input is coming from a touch screen (n
 pub const MouseSource_Pen = 2;         // Input is coming from a pressure/magnetic pen (often used in conjunction with high-sampling rates).
 pub const MouseSource_COUNT = 3;
 
-// Enumeration for ImGui::SetWindow***(), SetNextWindow***(), SetNextItem***() functions
+// Enumeration for ImGui::SetNextWindow***(), SetWindow***(), SetNextItem***() functions
 // Represent a condition.
 // Important: Treat as a regular enum! Do NOT combine multiple values using binary operators! All the functions above treat 0 as a shortcut to ImGuiCond_Always.
 pub const Cond_None = 0;         // No condition (always set the variable), same as _Always
@@ -814,6 +700,127 @@ pub const Cond_Always = 1;       // No condition (always set the variable), same
 pub const Cond_Once = 2;         // Set the variable once per runtime session (only the first call will succeed)
 pub const Cond_FirstUseEver = 4; // Set the variable if the object/window has no persistently saved data (no entry in .ini file)
 pub const Cond_Appearing = 8;    // Set the variable if the object/window is appearing after being hidden/inactive (or the first time)
+
+// Flags for ImGui::BeginTable()
+// - Important! Sizing policies have complex and subtle side effects, much more so than you would expect.
+//   Read comments/demos carefully + experiment with live demos to get acquainted with them.
+// - The DEFAULT sizing policies are:
+//    - Default to ImGuiTableFlags_SizingFixedFit    if ScrollX is on, or if host window has ImGuiWindowFlags_AlwaysAutoResize.
+//    - Default to ImGuiTableFlags_SizingStretchSame if ScrollX is off.
+// - When ScrollX is off:
+//    - Table defaults to ImGuiTableFlags_SizingStretchSame -> all Columns defaults to ImGuiTableColumnFlags_WidthStretch with same weight.
+//    - Columns sizing policy allowed: Stretch (default), Fixed/Auto.
+//    - Fixed Columns (if any) will generally obtain their requested width (unless the table cannot fit them all).
+//    - Stretch Columns will share the remaining width according to their respective weight.
+//    - Mixed Fixed/Stretch columns is possible but has various side-effects on resizing behaviors.
+//      The typical use of mixing sizing policies is: any number of LEADING Fixed columns, followed by one or two TRAILING Stretch columns.
+//      (this is because the visible order of columns have subtle but necessary effects on how they react to manual resizing).
+// - When ScrollX is on:
+//    - Table defaults to ImGuiTableFlags_SizingFixedFit -> all Columns defaults to ImGuiTableColumnFlags_WidthFixed
+//    - Columns sizing policy allowed: Fixed/Auto mostly.
+//    - Fixed Columns can be enlarged as needed. Table will show a horizontal scrollbar if needed.
+//    - When using auto-resizing (non-resizable) fixed columns, querying the content width to use item right-alignment e.g. SetNextItemWidth(-FLT_MIN) doesn't make sense, would create a feedback loop.
+//    - Using Stretch columns OFTEN DOES NOT MAKE SENSE if ScrollX is on, UNLESS you have specified a value for 'inner_width' in BeginTable().
+//      If you specify a value for 'inner_width' then effectively the scrolling space is known and Stretch or mixed Fixed/Stretch columns become meaningful again.
+// - Read on documentation at the top of imgui_tables.cpp for details.
+// Features
+pub const TableFlags_None = 0;
+pub const TableFlags_Resizable = 1;                      // Enable resizing columns.
+pub const TableFlags_Reorderable = 2;                    // Enable reordering columns in header row (need calling TableSetupColumn() + TableHeadersRow() to display headers)
+pub const TableFlags_Hideable = 4;                       // Enable hiding/disabling columns in context menu.
+pub const TableFlags_Sortable = 8;                       // Enable sorting. Call TableGetSortSpecs() to obtain sort specs. Also see ImGuiTableFlags_SortMulti and ImGuiTableFlags_SortTristate.
+pub const TableFlags_NoSavedSettings = 16;               // Disable persisting columns order, width and sort settings in the .ini file.
+pub const TableFlags_ContextMenuInBody = 32;             // Right-click on columns body/contents will display table context menu. By default it is available in TableHeadersRow().
+// Decorations
+pub const TableFlags_RowBg = 64;                         // Set each RowBg color with ImGuiCol_TableRowBg or ImGuiCol_TableRowBgAlt (equivalent of calling TableSetBgColor with ImGuiTableBgFlags_RowBg0 on each row manually)
+pub const TableFlags_BordersInnerH = 128;                // Draw horizontal borders between rows.
+pub const TableFlags_BordersOuterH = 256;                // Draw horizontal borders at the top and bottom.
+pub const TableFlags_BordersInnerV = 512;                // Draw vertical borders between columns.
+pub const TableFlags_BordersOuterV = 1024;               // Draw vertical borders on the left and right sides.
+pub const TableFlags_BordersH = 384;                     // Draw horizontal borders.
+pub const TableFlags_BordersV = 1536;                    // Draw vertical borders.
+pub const TableFlags_BordersInner = 640;                 // Draw inner borders.
+pub const TableFlags_BordersOuter = 1280;                // Draw outer borders.
+pub const TableFlags_Borders = 1920;                     // Draw all borders.
+pub const TableFlags_NoBordersInBody = 2048;             // [ALPHA] Disable vertical borders in columns Body (borders will always appear in Headers). -> May move to style
+pub const TableFlags_NoBordersInBodyUntilResize = 4096;  // [ALPHA] Disable vertical borders in columns Body until hovered for resize (borders will always appear in Headers). -> May move to style
+// Sizing Policy (read above for defaults)
+pub const TableFlags_SizingFixedFit = 8192;              // Columns default to _WidthFixed or _WidthAuto (if resizable or not resizable), matching contents width.
+pub const TableFlags_SizingFixedSame = 16384;            // Columns default to _WidthFixed or _WidthAuto (if resizable or not resizable), matching the maximum contents width of all columns. Implicitly enable ImGuiTableFlags_NoKeepColumnsVisible.
+pub const TableFlags_SizingStretchProp = 24576;          // Columns default to _WidthStretch with default weights proportional to each columns contents widths.
+pub const TableFlags_SizingStretchSame = 32768;          // Columns default to _WidthStretch with default weights all equal, unless overridden by TableSetupColumn().
+// Sizing Extra Options
+pub const TableFlags_NoHostExtendX = 65536;              // Make outer width auto-fit to columns, overriding outer_size.x value. Only available when ScrollX/ScrollY are disabled and Stretch columns are not used.
+pub const TableFlags_NoHostExtendY = 131072;             // Make outer height stop exactly at outer_size.y (prevent auto-extending table past the limit). Only available when ScrollX/ScrollY are disabled. Data below the limit will be clipped and not visible.
+pub const TableFlags_NoKeepColumnsVisible = 262144;      // Disable keeping column always minimally visible when ScrollX is off and table gets too small. Not recommended if columns are resizable.
+pub const TableFlags_PreciseWidths = 524288;             // Disable distributing remainder width to stretched columns (width allocation on a 100-wide table with 3 columns: Without this flag: 33,33,34. With this flag: 33,33,33). With larger number of columns, resizing will appear to be less smooth.
+// Clipping
+pub const TableFlags_NoClip = 1048576;                   // Disable clipping rectangle for every individual columns (reduce draw command count, items will be able to overflow into other columns). Generally incompatible with TableSetupScrollFreeze().
+// Padding
+pub const TableFlags_PadOuterX = 2097152;                // Default if BordersOuterV is on. Enable outermost padding. Generally desirable if you have headers.
+pub const TableFlags_NoPadOuterX = 4194304;              // Default if BordersOuterV is off. Disable outermost padding.
+pub const TableFlags_NoPadInnerX = 8388608;              // Disable inner padding between columns (double inner padding if BordersOuterV is on, single inner padding if BordersOuterV is off).
+// Scrolling
+pub const TableFlags_ScrollX = 16777216;                 // Enable horizontal scrolling. Require 'outer_size' parameter of BeginTable() to specify the container size. Changes default sizing policy. Because this creates a child window, ScrollY is currently generally recommended when using ScrollX.
+pub const TableFlags_ScrollY = 33554432;                 // Enable vertical scrolling. Require 'outer_size' parameter of BeginTable() to specify the container size.
+// Sorting
+pub const TableFlags_SortMulti = 67108864;               // Hold shift when clicking headers to sort on multiple column. TableGetSortSpecs() may return specs where (SpecsCount > 1).
+pub const TableFlags_SortTristate = 134217728;           // Allow no sorting, disable default sorting. TableGetSortSpecs() may return specs where (SpecsCount == 0).
+// Miscellaneous
+pub const TableFlags_HighlightHoveredColumn = 268435456; // Highlight column headers when hovered (may evolve into a fuller highlight)
+// [Internal] Combinations and masks
+pub const TableFlags_SizingMask_ = 57344;
+
+// Flags for ImGui::TableSetupColumn()
+// Input configuration flags
+pub const TableColumnFlags_None = 0;
+pub const TableColumnFlags_Disabled = 1;                 // Overriding/master disable flag: hide column, won't show in context menu (unlike calling TableSetColumnEnabled() which manipulates the user accessible state)
+pub const TableColumnFlags_DefaultHide = 2;              // Default as a hidden/disabled column.
+pub const TableColumnFlags_DefaultSort = 4;              // Default as a sorting column.
+pub const TableColumnFlags_WidthStretch = 8;             // Column will stretch. Preferable with horizontal scrolling disabled (default if table sizing policy is _SizingStretchSame or _SizingStretchProp).
+pub const TableColumnFlags_WidthFixed = 16;              // Column will not stretch. Preferable with horizontal scrolling enabled (default if table sizing policy is _SizingFixedFit and table is resizable).
+pub const TableColumnFlags_NoResize = 32;                // Disable manual resizing.
+pub const TableColumnFlags_NoReorder = 64;               // Disable manual reordering this column, this will also prevent other columns from crossing over this column.
+pub const TableColumnFlags_NoHide = 128;                 // Disable ability to hide/disable this column.
+pub const TableColumnFlags_NoClip = 256;                 // Disable clipping for this column (all NoClip columns will render in a same draw command).
+pub const TableColumnFlags_NoSort = 512;                 // Disable ability to sort on this field (even if ImGuiTableFlags_Sortable is set on the table).
+pub const TableColumnFlags_NoSortAscending = 1024;       // Disable ability to sort in the ascending direction.
+pub const TableColumnFlags_NoSortDescending = 2048;      // Disable ability to sort in the descending direction.
+pub const TableColumnFlags_NoHeaderLabel = 4096;         // TableHeadersRow() will not submit horizontal label for this column. Convenient for some small columns. Name will still appear in context menu or in angled headers.
+pub const TableColumnFlags_NoHeaderWidth = 8192;         // Disable header text width contribution to automatic column width.
+pub const TableColumnFlags_PreferSortAscending = 16384;  // Make the initial sort direction Ascending when first sorting on this column (default).
+pub const TableColumnFlags_PreferSortDescending = 32768; // Make the initial sort direction Descending when first sorting on this column.
+pub const TableColumnFlags_IndentEnable = 65536;         // Use current Indent value when entering cell (default for column 0).
+pub const TableColumnFlags_IndentDisable = 131072;       // Ignore current Indent value when entering cell (default for columns > 0). Indentation changes _within_ the cell will still be honored.
+pub const TableColumnFlags_AngledHeader = 262144;        // TableHeadersRow() will submit an angled header row for this column. Note this will add an extra row.
+// Output status flags, read-only via TableGetColumnFlags()
+pub const TableColumnFlags_IsEnabled = 16777216;         // Status: is enabled == not hidden by user/api (referred to as "Hide" in _DefaultHide and _NoHide) flags.
+pub const TableColumnFlags_IsVisible = 33554432;         // Status: is visible == is enabled AND not clipped by scrolling.
+pub const TableColumnFlags_IsSorted = 67108864;          // Status: is currently part of the sort specs
+pub const TableColumnFlags_IsHovered = 134217728;        // Status: is hovered by mouse
+// [Internal] Combinations and masks
+pub const TableColumnFlags_WidthMask_ = 24;
+pub const TableColumnFlags_IndentMask_ = 196608;
+pub const TableColumnFlags_StatusMask_ = 251658240;
+pub const TableColumnFlags_NoDirectResize_ = 1073741824; // [Internal] Disable user resizing this column directly (it may however we resized indirectly from its left edge)
+
+// Flags for ImGui::TableNextRow()
+pub const TableRowFlags_None = 0;
+pub const TableRowFlags_Headers = 1; // Identify header row (set default background color + width of its contents accounted differently for auto column width)
+
+// Enum for ImGui::TableSetBgColor()
+// Background colors are rendering in 3 layers:
+//  - Layer 0: draw with RowBg0 color if set, otherwise draw with ColumnBg0 if set.
+//  - Layer 1: draw with RowBg1 color if set, otherwise draw with ColumnBg1 if set.
+//  - Layer 2: draw with CellBg color if set.
+// The purpose of the two row/columns layers is to let you decide if a background color change should override or blend with the existing color.
+// When using ImGuiTableFlags_RowBg on the table, each row has the RowBg0 color automatically set for odd/even rows.
+// If you set the color of RowBg0 target, your color will override the existing RowBg0 color.
+// If you set the color of RowBg1 or ColumnBg1 target, your color will blend over the RowBg0 color.
+pub const TableBgTarget_None = 0;
+pub const TableBgTarget_RowBg0 = 1; // Set row background color 0 (generally used for background, automatically set when ImGuiTableFlags_RowBg is used)
+pub const TableBgTarget_RowBg1 = 2; // Set row background color 1 (generally used for selection marking)
+pub const TableBgTarget_CellBg = 3; // Set cell background color (top-most color)
 
 // Flags for ImDrawList functions
 // (Legacy: bit 0 must always correspond to ImDrawFlags_Closed to be backward compatible with old API using a bool. Bits 1..3 must be unused)
@@ -859,8 +866,9 @@ pub const ViewportFlags_OwnedByApp = 4;        // Platform Window: is created/ma
 // Enumerations
 // - We don't use strongly typed enums much because they add constraints (can't extend in private code, can't store typed in bit fields, extra casting on iteration)
 // - Tip: Use your programming IDE navigation facilities on the names in the _central column_ below to find the actual flags/enum lists!
-//   In Visual Studio IDE: CTRL+comma ("Edit.GoToAll") can follow symbols in comments, whereas CTRL+F12 ("Edit.GoToImplementation") cannot.
-//   With Visual Assist installed: ALT+G ("VAssistX.GoToImplementation") can also follow symbols in comments.
+//   - In Visual Studio: CTRL+comma ("Edit.GoToAll") can follow symbols inside comments, whereas CTRL+F12 ("Edit.GoToImplementation") cannot.
+//   - In Visual Studio w/ Visual Assist installed: ALT+G ("VAssistX.GoToImplementation") can also follow symbols inside comments.
+//   - In VS Code, CLion, etc.: CTRL+click can follow symbols inside comments.
 pub const Key = c_int;                                                                     // -> enum ImGuiKey              // Enum: A key identifier (ImGuiKey_XXX or ImGuiMod_XXX value)
 pub const MouseSource = c_int;                                                             // -> enum ImGuiMouseSource      // Enum; A mouse input source identifier (Mouse, TouchScreen, Pen)
 pub const Col = c_int;                                                                     // -> enum ImGuiCol_             // Enum: A color identifier for styling
@@ -872,10 +880,11 @@ pub const MouseCursor = c_int;                                                  
 pub const SortDirection = c_int;                                                           // -> enum ImGuiSortDirection_   // Enum: A sorting direction (ascending or descending)
 pub const StyleVar = c_int;                                                                // -> enum ImGuiStyleVar_        // Enum: A variable identifier for styling
 pub const TableBgTarget = c_int;                                                           // -> enum ImGuiTableBgTarget_   // Enum: A color target for TableSetBgColor()
-// Flags (declared as int for compatibility with old C++, to allow using as flags without overhead, and to not pollute the top of this file)
+// Flags (declared as int to allow using as flags without overhead, and to not pollute the top of this file)
 // - Tip: Use your programming IDE navigation facilities on the names in the _central column_ below to find the actual flags/enum lists!
-//   In Visual Studio IDE: CTRL+comma ("Edit.GoToAll") can follow symbols in comments, whereas CTRL+F12 ("Edit.GoToImplementation") cannot.
-//   With Visual Assist installed: ALT+G ("VAssistX.GoToImplementation") can also follow symbols in comments.
+//   - In Visual Studio: CTRL+comma ("Edit.GoToAll") can follow symbols inside comments, whereas CTRL+F12 ("Edit.GoToImplementation") cannot.
+//   - In Visual Studio w/ Visual Assist installed: ALT+G ("VAssistX.GoToImplementation") can also follow symbols inside comments.
+//   - In VS Code, CLion, etc.: CTRL+click can follow symbols inside comments.
 pub const DrawFlags = c_int;                                                               // -> enum ImDrawFlags_          // Flags: for ImDrawList functions
 pub const DrawListFlags = c_int;                                                           // -> enum ImDrawListFlags_      // Flags: for ImDrawList instance
 pub const FontAtlasFlags = c_int;                                                          // -> enum ImFontAtlasFlags_     // Flags: for ImFontAtlas build
@@ -889,7 +898,7 @@ pub const DragDropFlags = c_int;                                                
 pub const FocusedFlags = c_int;                                                            // -> enum ImGuiFocusedFlags_    // Flags: for IsWindowFocused()
 pub const HoveredFlags = c_int;                                                            // -> enum ImGuiHoveredFlags_    // Flags: for IsItemHovered(), IsWindowHovered() etc.
 pub const InputTextFlags = c_int;                                                          // -> enum ImGuiInputTextFlags_  // Flags: for InputText(), InputTextMultiline()
-pub const KeyChord = c_int;                                                                // -> ImGuiKey | ImGuiMod_XXX    // Flags: for storage only for now: an ImGuiKey optionally OR-ed with one or more ImGuiMod_XXX values.
+pub const KeyChord = c_int;                                                                // -> ImGuiKey | ImGuiMod_XXX    // Flags: for IsKeyChordPressed(), Shortcut() etc. an ImGuiKey optionally OR-ed with one or more ImGuiMod_XXX values.
 pub const PopupFlags = c_int;                                                              // -> enum ImGuiPopupFlags_      // Flags: for OpenPopup*(), BeginPopupContext*(), IsPopupOpen()
 pub const SelectableFlags = c_int;                                                         // -> enum ImGuiSelectableFlags_ // Flags: for Selectable()
 pub const SliderFlags = c_int;                                                             // -> enum ImGuiSliderFlags_     // Flags: for DragFloat(), DragInt(), SliderFloat(), SliderInt() etc.
@@ -962,6 +971,24 @@ pub const Vec4 = extern struct {
     w: f32,
 };
 
+// Sorting specifications for a table (often handling sort specs for a single column, occasionally more)
+// Obtained by calling TableGetSortSpecs().
+// When 'SpecsDirty == true' you can sort your data. It will be true with sorting specs have changed since last call, or the first time.
+// Make sure to set 'SpecsDirty = false' after sorting, else you may wastefully sort your data every frame!
+pub const TableSortSpecs = extern struct {
+    specs: ?[*]const TableColumnSortSpecs, // Pointer to sort spec array.
+    specs_count: c_int,                    // Sort spec count. Most often 1. May be > 1 when ImGuiTableFlags_SortMulti is enabled. May be == 0 when ImGuiTableFlags_SortTristate is enabled.
+    specs_dirty: bool,                     // Set to true when specs have changed since last time! Use this to sort again, then clear the flag.
+};
+
+// Sorting specification for one column of a table (sizeof == 12 bytes)
+pub const TableColumnSortSpecs = extern struct {
+    column_user_id: ID,            // User id of the column (if specified by a TableSetupColumn() call)
+    column_index: S16,             // Index of the column
+    sort_order: S16,               // Index within parent ImGuiTableSortSpecs (always stored in order starting from 0, tables sorted on a single criteria will always have a 0 here)
+    sort_direction: SortDirection, // ImGuiSortDirection_Ascending or ImGuiSortDirection_Descending
+};
+
 pub const Style = extern struct {
     alpha: f32,                                  // Global alpha applies to everything in Dear ImGui.
     disabled_alpha: f32,                         // Additional alpha multiplier applied by BeginDisabled(). Multiply over current value of Alpha.
@@ -980,7 +1007,7 @@ pub const Style = extern struct {
     frame_border_size: f32,                      // Thickness of border around frames. Generally set to 0.0f or 1.0f. (Other values are not well tested and more CPU/GPU costly).
     item_spacing: Vec2,                          // Horizontal and vertical spacing between widgets/lines.
     item_inner_spacing: Vec2,                    // Horizontal and vertical spacing between within elements of a composed widget (e.g. a slider and its label).
-    cell_padding: Vec2,                          // Padding within a table cell. CellPadding.y may be altered between different rows.
+    cell_padding: Vec2,                          // Padding within a table cell. Cellpadding.x is locked for entire table. CellPadding.y may be altered between different rows.
     touch_extra_padding: Vec2,                   // Expand reactive bounding box for touch-based system where touch position is not accurate enough. Unfortunately we don't sort widgets so priority on overlap will always be given to the first widget. So don't grow this too much!
     indent_spacing: f32,                         // Horizontal indentation when e.g. entering a tree node. Generally == (FontSize + FramePadding.x*2).
     columns_min_spacing: f32,                    // Minimum horizontal spacing between two columns. Preferably > (FramePadding.x + 1).
@@ -1059,15 +1086,20 @@ pub const IO = extern struct {
     mouse_drag_threshold: f32,                                                              // = 6.0f           // Distance threshold before considering we are dragging.
     key_repeat_delay: f32,                                                                  // = 0.275f         // When holding a key/button, time before it starts repeating, in seconds (for buttons in Repeat mode, etc.).
     key_repeat_rate: f32,                                                                   // = 0.050f         // When holding a key/button, rate at which it repeats, in seconds.
+    // Option to enable various debug tools showing buttons that will call the IM_DEBUG_BREAK() macro.
+    // - The Item Picker tool will be available regardless of this being enabled, in order to maximize its discoverability.
+    // - Requires a debugger being attached, otherwise IM_DEBUG_BREAK() options will appear to crash your application.
+    //   e.g. io.ConfigDebugIsDebuggerPresent = ::IsDebuggerPresent() on Win32, or refer to ImOsIsDebuggerPresent() imgui_test_engine/imgui_te_utils.cpp for a Unix compatible version).
+    config_debug_is_debugger_present: bool,                                                 // = false          // Enable various tools calling IM_DEBUG_BREAK().
     // Tools to test correct Begin/End and BeginChild/EndChild behaviors.
-    // Presently Begin()/End() and BeginChild()/EndChild() needs to ALWAYS be called in tandem, regardless of return value of BeginXXX()
-    // This is inconsistent with other BeginXXX functions and create confusion for many users.
-    // We expect to update the API eventually. In the meanwhile we provide tools to facilitate checking user-code behavior.
+    // - Presently Begin()/End() and BeginChild()/EndChild() needs to ALWAYS be called in tandem, regardless of return value of BeginXXX()
+    // - This is inconsistent with other BeginXXX functions and create confusion for many users.
+    // - We expect to update the API eventually. In the meanwhile we provide tools to facilitate checking user-code behavior.
     config_debug_begin_return_value_once: bool,                                             // = false          // First-time calls to Begin()/BeginChild() will return false. NEEDS TO BE SET AT APPLICATION BOOT TIME if you don't want to miss windows.
     config_debug_begin_return_value_loop: bool,                                             // = false          // Some calls to Begin()/BeginChild() will return false. Will cycle through window depths then repeat. Suggested use: add "io.ConfigDebugBeginReturnValue = io.KeyShift" in your main loop then occasionally press SHIFT. Windows should be flickering while running.
-    // Option to deactivate io.AddFocusEvent(false) handling. May facilitate interactions with a debugger when focus loss leads to clearing inputs data.
-    // Backends may have other side-effects on focus loss, so this will reduce side-effects but not necessary remove all of them.
-    // Consider using e.g. Win32's IsDebuggerPresent() as an additional filter (or see ImOsIsDebuggerPresent() in imgui_test_engine/imgui_te_utils.cpp for a Unix compatible version).
+    // Option to deactivate io.AddFocusEvent(false) handling.
+    // - May facilitate interactions with a debugger when focus loss leads to clearing inputs data.
+    // - Backends may have other side-effects on focus loss, so this will reduce side-effects but not necessary remove all of them.
     config_debug_ignore_focus_loss: bool,                                                   // = false          // Ignore io.AddFocusEvent(false), consequently not calling io.ClearInputKeys() in input processing.
     // Options to audit .ini data
     config_debug_ini_settings: bool,                                                        // = false          // Save .ini data with extra comments (particularly helpful for Docking, but makes saving slower)
@@ -1171,6 +1203,8 @@ pub const InputTextCallbackData = extern struct {
     flags: InputTextFlags,      // What user passed to InputText()      // Read-only
     user_data: ?*anyopaque,     // What user passed to InputText()      // Read-only
     // Arguments for the different callback events
+    // - During Resize callback, Buf will be same as your input buffer.
+    // - However, during Completion/History/Always callback, Buf always points to our own internal data (it is not the same as your buffer)! Changes to it will be reflected into your own buffer shortly after the callback.
     // - To modify the text buffer in a callback, prefer using the InsertChars() / DeleteChars() function. InsertChars() will take care of calling the resize callback if necessary.
     // - If you know your edits are not going to resize the underlying buffer allocation, you may modify the contents of 'Buf[]' directly. You need to update 'BufTextLen' accordingly (0 <= BufTextLen < BufSize) and set 'BufDirty'' to true so InputText can update its internal state.
     event_char: Wchar,          // Character input                      // Read-write   // [CharFilter] Replace character with another one, or set to zero to drop. return 1 is equivalent to setting EventChar=0;
@@ -1214,24 +1248,6 @@ pub const Payload = extern struct {
     pub const isDataType = ImGuiPayload_IsDataType;
     pub const isPreview = ImGuiPayload_IsPreview;
     pub const isDelivery = ImGuiPayload_IsDelivery;
-};
-
-// Sorting specification for one column of a table (sizeof == 12 bytes)
-pub const TableColumnSortSpecs = extern struct {
-    column_user_id: ID,            // User id of the column (if specified by a TableSetupColumn() call)
-    column_index: S16,             // Index of the column
-    sort_order: S16,               // Index within parent ImGuiTableSortSpecs (always stored in order starting from 0, tables sorted on a single criteria will always have a 0 here)
-    sort_direction: SortDirection, // ImGuiSortDirection_Ascending or ImGuiSortDirection_Descending
-};
-
-// Sorting specifications for a table (often handling sort specs for a single column, occasionally more)
-// Obtained by calling TableGetSortSpecs().
-// When 'SpecsDirty == true' you can sort your data. It will be true with sorting specs have changed since last call, or the first time.
-// Make sure to set 'SpecsDirty = false' after sorting, else you may wastefully sort your data every frame!
-pub const TableSortSpecs = extern struct {
-    specs: ?[*]const TableColumnSortSpecs, // Pointer to sort spec array.
-    specs_count: c_int,                    // Sort spec count. Most often 1. May be > 1 when ImGuiTableFlags_SortMulti is enabled. May be == 0 when ImGuiTableFlags_SortTristate is enabled.
-    specs_dirty: bool,                     // Set to true when specs have changed since last time! Use this to sort again, then clear the flag.
 };
 
 // [Internal]
@@ -1483,10 +1499,14 @@ pub const DrawList = extern struct {
     pub const addTextEx = ImDrawList_AddTextEx;
     pub const addTextImFontPtr = ImDrawList_AddTextImFontPtr;                      // Implied text_end = NULL, wrap_width = 0.0f, cpu_fine_clip_rect = NULL
     pub const addTextImFontPtrEx = ImDrawList_AddTextImFontPtrEx;
-    pub const addPolyline = ImDrawList_AddPolyline;
-    pub const addConvexPolyFilled = ImDrawList_AddConvexPolyFilled;
     pub const addBezierCubic = ImDrawList_AddBezierCubic;                          // Cubic Bezier (4 control points)
     pub const addBezierQuadratic = ImDrawList_AddBezierQuadratic;                  // Quadratic Bezier (3 control points)
+    // General polygon
+    // - Only simple polygons are supported by filling functions (no self-intersections, no holes).
+    // - Concave polygon fill is more expensive than convex one: it has O(N^2) complexity. Provided as a convenience fo user but not used by main library.
+    pub const addPolyline = ImDrawList_AddPolyline;
+    pub const addConvexPolyFilled = ImDrawList_AddConvexPolyFilled;
+    pub const addConcavePolyFilled = ImDrawList_AddConcavePolyFilled;
     // Image primitives
     // - Read FAQ to understand what ImTextureID is.
     // - "p_min" and "p_max" represent the upper-left and lower-right corners of the rectangle.
@@ -1497,11 +1517,13 @@ pub const DrawList = extern struct {
     pub const addImageQuadEx = ImDrawList_AddImageQuadEx;
     pub const addImageRounded = ImDrawList_AddImageRounded;
     // Stateful path API, add points then finish with PathFillConvex() or PathStroke()
-    // - Filled shapes must always use clockwise winding order. The anti-aliasing fringe depends on it. Counter-clockwise shapes will have "inward" anti-aliasing.
+    // - Important: filled shapes must always use clockwise winding order! The anti-aliasing fringe depends on it. Counter-clockwise shapes will have "inward" anti-aliasing.
+    //   so e.g. 'PathArcTo(center, radius, PI * -0.5f, PI)' is ok, whereas 'PathArcTo(center, radius, PI, PI * -0.5f)' won't have correct anti-aliasing when followed by PathFillConvex().
     pub const pathClear = ImDrawList_PathClear;
     pub const pathLineTo = ImDrawList_PathLineTo;
     pub const pathLineToMergeDuplicate = ImDrawList_PathLineToMergeDuplicate;
     pub const pathFillConvex = ImDrawList_PathFillConvex;
+    pub const pathFillConcave = ImDrawList_PathFillConcave;
     pub const pathStroke = ImDrawList_PathStroke;
     pub const pathArcTo = ImDrawList_PathArcTo;
     pub const pathArcToFast = ImDrawList_PathArcToFast;                            // Use precomputed angles for a 12 steps circle
@@ -1781,6 +1803,7 @@ pub const Font = extern struct {
 //   - Work Area = entire viewport minus sections used by main menu bars (for platform windows), or by task bar (for platform monitor).
 //   - Windows are generally trying to stay within the Work Area of their host viewport.
 pub const Viewport = extern struct {
+    id: ID,                           // Unique identifier for the viewport
     flags: ViewportFlags,             // See ImGuiViewportFlags_
     pos: Vec2,                        // Main Area: Position of the viewport (Dear ImGui coordinates are the same as OS desktop/native coordinates)
     size: Vec2,                       // Main Area: Size of the viewport.
@@ -1817,7 +1840,7 @@ pub const getCurrentContext = ImGui_GetCurrentContext;
 pub const setCurrentContext = ImGui_SetCurrentContext;
 // Main
 pub const getIO = ImGui_GetIO;                                                       // access the IO structure (mouse/keyboard/gamepad inputs, time, various configuration options/flags)
-pub const getStyle = ImGui_GetStyle;                                                 // access the Style structure (colors, sizes). Always use PushStyleCol(), PushStyleVar() to modify style mid-frame!
+pub const getStyle = ImGui_GetStyle;                                                 // access the Style structure (colors, sizes). Always use PushStyleColor(), PushStyleVar() to modify style mid-frame!
 pub const newFrame = ImGui_NewFrame;                                                 // start a new Dear ImGui frame, you can submit any command from this point until Render()/EndFrame().
 pub const endFrame = ImGui_EndFrame;                                                 // ends the Dear ImGui frame. automatically called by Render(). If you don't need to render data (skipping rendering) you may call EndFrame() without Render()... but you'll have wasted CPU already! If you don't need to render, better to not create any windows and not call NewFrame() at all!
 pub const render = ImGui_Render;                                                     // ends the Dear ImGui frame, finalize the draw data. You can then get call GetDrawData().
@@ -1856,7 +1879,7 @@ pub const end = ImGui_End;
 // - Use child windows to begin into a self-contained independent scrolling/clipping regions within a host window. Child windows can embed their own child.
 // - Before 1.90 (November 2023), the "ImGuiChildFlags child_flags = 0" parameter was "bool border = false".
 //   This API is backward compatible with old code, as we guarantee that ImGuiChildFlags_Border == true.
-//   Consider updating your old call sites:
+//   Consider updating your old code:
 //      BeginChild("Name", size, false)   -> Begin("Name", size, 0); or Begin("Name", size, ImGuiChildFlags_None);
 //      BeginChild("Name", size, true)    -> Begin("Name", size, ImGuiChildFlags_Border);
 // - Manual sizing (each axis can use a different setting e.g. ImVec2(0.0f, 400.0f)):
@@ -1954,7 +1977,8 @@ pub const getFontTexUvWhitePixel = ImGui_GetFontTexUvWhitePixel;                
 pub const getColorU32 = ImGui_GetColorU32;                                           // Implied alpha_mul = 1.0f
 pub const getColorU32Ex = ImGui_GetColorU32Ex;                                       // retrieve given style color with style alpha applied and optional extra alpha multiplier, packed as a 32-bit value suitable for ImDrawList
 pub const getColorU32ImVec4 = ImGui_GetColorU32ImVec4;                               // retrieve given color with style alpha applied, packed as a 32-bit value suitable for ImDrawList
-pub const getColorU32ImU32 = ImGui_GetColorU32ImU32;                                 // retrieve given color with style alpha applied, packed as a 32-bit value suitable for ImDrawList
+pub const getColorU32ImU32 = ImGui_GetColorU32ImU32;                                 // Implied alpha_mul = 1.0f
+pub const getColorU32ImU32Ex = ImGui_GetColorU32ImU32Ex;                             // retrieve given color with style alpha applied, packed as a 32-bit value suitable for ImDrawList
 pub const getStyleColorVec4 = ImGui_GetStyleColorVec4;                               // retrieve style color as stored in ImGuiStyle structure. use to feed back into PushStyleColor(), otherwise use GetColorU32() to get style color with style alpha baked in.
 // Layout cursor positioning
 // - By "cursor" we mean the current output position.
@@ -2016,14 +2040,19 @@ pub const textUnformattedEx = ImGui_TextUnformattedEx;                          
 pub const text = ImGui_Text;                                                         // formatted text
 pub const textV = ImGui_TextV;
 pub const textColored = ImGui_TextColored;                                           // shortcut for PushStyleColor(ImGuiCol_Text, col); Text(fmt, ...); PopStyleColor();
+pub const textColoredUnformatted = ImGui_TextColoredUnformatted;                     // shortcut for PushStyleColor(ImGuiCol_Text, col); Text(fmt, ...); PopStyleColor();
 pub const textColoredV = ImGui_TextColoredV;
 pub const textDisabled = ImGui_TextDisabled;                                         // shortcut for PushStyleColor(ImGuiCol_Text, style.Colors[ImGuiCol_TextDisabled]); Text(fmt, ...); PopStyleColor();
+pub const textDisabledUnformatted = ImGui_TextDisabledUnformatted;                   // shortcut for PushStyleColor(ImGuiCol_Text, style.Colors[ImGuiCol_TextDisabled]); Text(fmt, ...); PopStyleColor();
 pub const textDisabledV = ImGui_TextDisabledV;
 pub const textWrapped = ImGui_TextWrapped;                                           // shortcut for PushTextWrapPos(0.0f); Text(fmt, ...); PopTextWrapPos();. Note that this won't work on an auto-resizing window if there's no other widgets to extend the window width, yoy may need to set a size using SetNextWindowSize().
+pub const textWrappedUnformatted = ImGui_TextWrappedUnformatted;                     // shortcut for PushTextWrapPos(0.0f); Text(fmt, ...); PopTextWrapPos();. Note that this won't work on an auto-resizing window if there's no other widgets to extend the window width, yoy may need to set a size using SetNextWindowSize().
 pub const textWrappedV = ImGui_TextWrappedV;
 pub const labelText = ImGui_LabelText;                                               // display text+label aligned the same way as value+label widgets
+pub const labelTextUnformatted = ImGui_LabelTextUnformatted;                         // display text+label aligned the same way as value+label widgets
 pub const labelTextV = ImGui_LabelTextV;
 pub const bulletText = ImGui_BulletText;                                             // shortcut for Bullet()+Text()
+pub const bulletTextUnformatted = ImGui_BulletTextUnformatted;                       // shortcut for Bullet()+Text()
 pub const bulletTextV = ImGui_BulletTextV;
 pub const separatorText = ImGui_SeparatorText;                                       // currently: formatted text with an horizontal line
 // Widgets: Main
@@ -2043,7 +2072,8 @@ pub const progressBar = ImGui_ProgressBar;
 pub const bullet = ImGui_Bullet;                                                     // draw a small circle + keep the cursor on the same line. advance cursor x position by GetTreeNodeToLabelSpacing(), same distance that TreeNode() uses
 // Widgets: Images
 // - Read about ImTextureID here: https://github.com/ocornut/imgui/wiki/Image-Loading-and-Displaying-Examples
-// - Note that ImageButton() adds style.FramePadding*2.0f to provided size. This is in order to facilitate fitting an image in a button.
+// - 'uv0' and 'uv1' are texture coordinates. Read about them from the same link above.
+// - Note that Image() may add +2.0f to provided size if a border is visible, ImageButton() adds style.FramePadding*2.0f to provided size.
 pub const image = ImGui_Image;                                                       // Implied uv0 = ImVec2(0, 0), uv1 = ImVec2(1, 1), tint_col = ImVec4(1, 1, 1, 1), border_col = ImVec4(0, 0, 0, 0)
 pub const imageEx = ImGui_ImageEx;
 pub const imageButton = ImGui_ImageButton;                                           // Implied uv0 = ImVec2(0, 0), uv1 = ImVec2(1, 1), bg_col = ImVec4(0, 0, 0, 0), tint_col = ImVec4(1, 1, 1, 1)
@@ -2171,17 +2201,21 @@ pub const setColorEditOptions = ImGui_SetColorEditOptions;                      
 // - TreeNode functions return true when the node is open, in which case you need to also call TreePop() when you are finished displaying the tree node contents.
 pub const treeNode = ImGui_TreeNode;
 pub const treeNodeStr = ImGui_TreeNodeStr;                                           // helper variation to easily decorelate the id from the displayed string. Read the FAQ about why and how to use ID. to align arbitrary text at the same level as a TreeNode() you can use Bullet().
+pub const treeNodeStrUnformatted = ImGui_TreeNodeStrUnformatted;                     // helper variation to easily decorelate the id from the displayed string. Read the FAQ about why and how to use ID. to align arbitrary text at the same level as a TreeNode() you can use Bullet().
 pub const treeNodePtr = ImGui_TreeNodePtr;                                           // "
+pub const treeNodePtrUnformatted = ImGui_TreeNodePtrUnformatted;                     // "
 pub const treeNodeV = ImGui_TreeNodeV;
 pub const treeNodeVPtr = ImGui_TreeNodeVPtr;
 pub const treeNodeEx = ImGui_TreeNodeEx;
 pub const treeNodeExStr = ImGui_TreeNodeExStr;
+pub const treeNodeExStrUnformatted = ImGui_TreeNodeExStrUnformatted;
 pub const treeNodeExPtr = ImGui_TreeNodeExPtr;
+pub const treeNodeExPtrUnformatted = ImGui_TreeNodeExPtrUnformatted;
 pub const treeNodeExV = ImGui_TreeNodeExV;
 pub const treeNodeExVPtr = ImGui_TreeNodeExVPtr;
-pub const treePush = ImGui_TreePush;                                                 // ~ Indent()+PushId(). Already called by TreeNode() when returning true, but you can call TreePush/TreePop yourself if desired.
+pub const treePush = ImGui_TreePush;                                                 // ~ Indent()+PushID(). Already called by TreeNode() when returning true, but you can call TreePush/TreePop yourself if desired.
 pub const treePushPtr = ImGui_TreePushPtr;                                           // "
-pub const treePop = ImGui_TreePop;                                                   // ~ Unindent()+PopId()
+pub const treePop = ImGui_TreePop;                                                   // ~ Unindent()+PopID()
 pub const getTreeNodeToLabelSpacing = ImGui_GetTreeNodeToLabelSpacing;               // horizontal distance preceding label when using TreeNode*() or Bullet() == (g.FontSize + style.FramePadding.x*2) for a regular unframed TreeNode
 pub const collapsingHeader = ImGui_CollapsingHeader;                                 // if returning 'true' the header is open. doesn't indent nor push on ID stack. user doesn't have to call TreePop().
 pub const collapsingHeaderBoolPtr = ImGui_CollapsingHeaderBoolPtr;                   // when 'p_visible != NULL': if '*p_visible==true' display an additional small close button on upper right of the header which will set the bool to false when clicked, if '*p_visible==false' don't display the header.
@@ -2235,6 +2269,7 @@ pub const menuItemBoolPtr = ImGui_MenuItemBoolPtr;                              
 pub const beginTooltip = ImGui_BeginTooltip;                                         // begin/append a tooltip window.
 pub const endTooltip = ImGui_EndTooltip;                                             // only call EndTooltip() if BeginTooltip()/BeginItemTooltip() returns true!
 pub const setTooltip = ImGui_SetTooltip;                                             // set a text-only tooltip. Often used after a ImGui::IsItemHovered() check. Override any previous call to SetTooltip().
+pub const setTooltipUnformatted = ImGui_SetTooltipUnformatted;                       // set a text-only tooltip. Often used after a ImGui::IsItemHovered() check. Override any previous call to SetTooltip().
 pub const setTooltipV = ImGui_SetTooltipV;
 // Tooltips: helpers for showing a tooltip when hovering an item
 // - BeginItemTooltip() is a shortcut for the 'if (IsItemHovered(ImGuiHoveredFlags_ForTooltip) && BeginTooltip())' idiom.
@@ -2242,9 +2277,17 @@ pub const setTooltipV = ImGui_SetTooltipV;
 // - Where 'ImGuiHoveredFlags_ForTooltip' itself is a shortcut to use 'style.HoverFlagsForTooltipMouse' or 'style.HoverFlagsForTooltipNav' depending on active input type. For mouse it defaults to 'ImGuiHoveredFlags_Stationary | ImGuiHoveredFlags_DelayShort'.
 pub const beginItemTooltip = ImGui_BeginItemTooltip;                                 // begin/append a tooltip window if preceding item was hovered.
 pub const setItemTooltip = ImGui_SetItemTooltip;                                     // set a text-only tooltip if preceeding item was hovered. override any previous call to SetTooltip().
+pub const setItemTooltipUnformatted = ImGui_SetItemTooltipUnformatted;               // set a text-only tooltip if preceeding item was hovered. override any previous call to SetTooltip().
 pub const setItemTooltipV = ImGui_SetItemTooltipV;
-// Popups: begin/end functions
-//  - BeginPopup(): query popup state, if open start appending into the window. Call EndPopup() afterwards. ImGuiWindowFlags are forwarded to the window.
+// Popups, Modals
+//  - They block normal mouse hovering detection (and therefore most mouse interactions) behind them.
+//  - If not modal: they can be closed by clicking anywhere outside them, or by pressing ESCAPE.
+//  - Their visibility state (~bool) is held internally instead of being held by the programmer as we are used to with regular Begin*() calls.
+//  - The 3 properties above are related: we need to retain popup visibility state in the library because popups may be closed as any time.
+//  - You can bypass the hovering restriction by using ImGuiHoveredFlags_AllowWhenBlockedByPopup when calling IsItemHovered() or IsWindowHovered().
+//  - IMPORTANT: Popup identifiers are relative to the current ID stack, so OpenPopup and BeginPopup generally needs to be at the same level of the stack.
+//    This is sometimes leading to confusing mistakes. May rework this in the future.
+//  - BeginPopup(): query popup state, if open start appending into the window. Call EndPopup() afterwards if returned true. ImGuiWindowFlags are forwarded to the window.
 //  - BeginPopupModal(): block every interaction behind the window, cannot be closed by user, add a dimming background, has a title bar.
 pub const beginPopup = ImGui_BeginPopup;                                             // return true if the popup is open, and you can start outputting to it.
 pub const beginPopupModal = ImGui_BeginPopupModal;                                   // return true if the modal is open, and you can start outputting to it.
@@ -2293,12 +2336,10 @@ pub const isPopupOpen = ImGui_IsPopupOpen;                                      
 //      TableNextColumn() will automatically wrap-around into the next row if needed.
 //    - IMPORTANT: Comparatively to the old Columns() API, we need to call TableNextColumn() for the first column!
 //    - Summary of possible call flow:
-//        --------------------------------------------------------------------------------------------------------
-//        TableNextRow() -> TableSetColumnIndex(0) -> Text("Hello 0") -> TableSetColumnIndex(1) -> Text("Hello 1")  // OK
-//        TableNextRow() -> TableNextColumn()      -> Text("Hello 0") -> TableNextColumn()      -> Text("Hello 1")  // OK
-//                          TableNextColumn()      -> Text("Hello 0") -> TableNextColumn()      -> Text("Hello 1")  // OK: TableNextColumn() automatically gets to next row!
-//        TableNextRow()                           -> Text("Hello 0")                                               // Not OK! Missing TableSetColumnIndex() or TableNextColumn()! Text will not appear!
-//        --------------------------------------------------------------------------------------------------------
+//        - TableNextRow() -> TableSetColumnIndex(0) -> Text("Hello 0") -> TableSetColumnIndex(1) -> Text("Hello 1")  // OK
+//        - TableNextRow() -> TableNextColumn()      -> Text("Hello 0") -> TableNextColumn()      -> Text("Hello 1")  // OK
+//        -                   TableNextColumn()      -> Text("Hello 0") -> TableNextColumn()      -> Text("Hello 1")  // OK: TableNextColumn() automatically gets to next row!
+//        - TableNextRow()                           -> Text("Hello 0")                                               // Not OK! Missing TableSetColumnIndex() or TableNextColumn()! Text will not appear!
 // - 5. Call EndTable()
 pub const beginTable = ImGui_BeginTable;                                             // Implied outer_size = ImVec2(0.0f, 0.0f), inner_width = 0.0f
 pub const beginTableEx = ImGui_BeginTableEx;
@@ -2362,6 +2403,7 @@ pub const logToClipboard = ImGui_LogToClipboard;                                
 pub const logFinish = ImGui_LogFinish;                                               // stop logging (close file, etc.)
 pub const logButtons = ImGui_LogButtons;                                             // helper to display buttons for logging to tty/file/clipboard
 pub const logText = ImGui_LogText;                                                   // pass text data straight to log (without being displayed)
+pub const logTextUnformatted = ImGui_LogTextUnformatted;                             // pass text data straight to log (without being displayed)
 pub const logTextV = ImGui_LogTextV;
 // Drag and Drop
 // - On source items, call BeginDragDropSource(), if it returns true also call SetDragDropPayload() + EndDragDropSource().
@@ -2487,7 +2529,10 @@ pub const loadIniSettingsFromMemory = ImGui_LoadIniSettingsFromMemory;          
 pub const saveIniSettingsToDisk = ImGui_SaveIniSettingsToDisk;                       // this is automatically called (if io.IniFilename is not empty) a few seconds after any modification that should be reflected in the .ini file (and also by DestroyContext).
 pub const saveIniSettingsToMemory = ImGui_SaveIniSettingsToMemory;                   // return a zero-terminated string with the .ini data which you can save by your own mean. call when io.WantSaveIniSettings is set, then save data by your own mean and clear io.WantSaveIniSettings.
 // Debug Utilities
+// - Your main debugging friend is the ShowMetricsWindow() function, which is also accessible from Demo->Tools->Metrics Debugger
 pub const debugTextEncoding = ImGui_DebugTextEncoding;
+pub const debugFlashStyleColor = ImGui_DebugFlashStyleColor;
+pub const debugStartItemPicker = ImGui_DebugStartItemPicker;
 pub const debugCheckVersionAndDataLayout = ImGui_DebugCheckVersionAndDataLayout;     // This is called by IMGUI_CHECKVERSION() macro.
 // Memory Allocators
 // - Those functions are not reliant on the current context.
@@ -2499,7 +2544,6 @@ pub const memAlloc = ImGui_MemAlloc;
 pub const memFree = ImGui_MemFree;
 pub const vector_Construct = ImVector_Construct;                                     // Construct a zero-size ImVector<> (of any type). This is primarily useful when calling ImFontGlyphRangesBuilder_BuildRanges()
 pub const vector_Destruct = ImVector_Destruct;                                       // Destruct an ImVector<> (of any type). Important: Frees the vector memory but does not call destructors on contained objects (if they have them)
-pub const getKeyIndex = ImGui_GetKeyIndex;
 
 //-----------------------------------------------------------------------------
 // Extern declarations
@@ -2602,6 +2646,7 @@ extern fn ImGui_GetColorU32(idx: Col) U32;
 extern fn ImGui_GetColorU32Ex(idx: Col, alpha_mul: f32) U32;
 extern fn ImGui_GetColorU32ImVec4(col: Vec4) U32;
 extern fn ImGui_GetColorU32ImU32(col: U32) U32;
+extern fn ImGui_GetColorU32ImU32Ex(col: U32, alpha_mul: f32) U32;
 extern fn ImGui_GetStyleColorVec4(idx: Col) *const Vec4;
 extern fn ImGui_GetCursorScreenPos() Vec2;
 extern fn ImGui_SetCursorScreenPos(pos: Vec2) void;
@@ -2639,18 +2684,23 @@ extern fn ImGui_GetIDStr(str_id_begin: ?[*:0]const u8, str_id_end: ?[*:0]const u
 extern fn ImGui_GetIDPtr(ptr_id: ?*anyopaque) ID;
 extern fn ImGui_TextUnformatted(text: ?[*:0]const u8) void;
 extern fn ImGui_TextUnformattedEx(text: ?[*:0]const u8, text_end: ?[*:0]const u8) void;
-extern fn ImGui_Text(fmt: ?[*:0]const u8, ...) void;
-extern fn ImGui_TextV(fmt: ?[*:0]const u8, args: c.va_list) void;
-extern fn ImGui_TextColored(col: Vec4, fmt: ?[*:0]const u8, ...) void;
-extern fn ImGui_TextColoredV(col: Vec4, fmt: ?[*:0]const u8, args: c.va_list) void;
-extern fn ImGui_TextDisabled(fmt: ?[*:0]const u8, ...) void;
-extern fn ImGui_TextDisabledV(fmt: ?[*:0]const u8, args: c.va_list) void;
-extern fn ImGui_TextWrapped(fmt: ?[*:0]const u8, ...) void;
-extern fn ImGui_TextWrappedV(fmt: ?[*:0]const u8, args: c.va_list) void;
-extern fn ImGui_LabelText(label: ?[*:0]const u8, fmt: ?[*:0]const u8, ...) void;
-extern fn ImGui_LabelTextV(label: ?[*:0]const u8, fmt: ?[*:0]const u8, args: c.va_list) void;
-extern fn ImGui_BulletText(fmt: ?[*:0]const u8, ...) void;
-extern fn ImGui_BulletTextV(fmt: ?[*:0]const u8, args: c.va_list) void;
+extern fn ImGui_Text(fmt: [*:0]const u8, ...) void;
+extern fn ImGui_TextV(fmt: [*:0]const u8, args: c.va_list) void;
+extern fn ImGui_TextColored(col: Vec4, fmt: [*:0]const u8, ...) void;
+extern fn ImGui_TextColoredUnformatted(col: Vec4, text: ?[*:0]const u8) void;
+extern fn ImGui_TextColoredV(col: Vec4, fmt: [*:0]const u8, args: c.va_list) void;
+extern fn ImGui_TextDisabled(fmt: [*:0]const u8, ...) void;
+extern fn ImGui_TextDisabledUnformatted(text: ?[*:0]const u8) void;
+extern fn ImGui_TextDisabledV(fmt: [*:0]const u8, args: c.va_list) void;
+extern fn ImGui_TextWrapped(fmt: [*:0]const u8, ...) void;
+extern fn ImGui_TextWrappedUnformatted(text: ?[*:0]const u8) void;
+extern fn ImGui_TextWrappedV(fmt: [*:0]const u8, args: c.va_list) void;
+extern fn ImGui_LabelText(label: ?[*:0]const u8, fmt: [*:0]const u8, ...) void;
+extern fn ImGui_LabelTextUnformatted(label: ?[*:0]const u8, text: ?[*:0]const u8) void;
+extern fn ImGui_LabelTextV(label: ?[*:0]const u8, fmt: [*:0]const u8, args: c.va_list) void;
+extern fn ImGui_BulletText(fmt: [*:0]const u8, ...) void;
+extern fn ImGui_BulletTextUnformatted(text: ?[*:0]const u8) void;
+extern fn ImGui_BulletTextV(fmt: [*:0]const u8, args: c.va_list) void;
 extern fn ImGui_SeparatorText(label: ?[*:0]const u8) void;
 extern fn ImGui_Button(label: ?[*:0]const u8) bool;
 extern fn ImGui_ButtonEx(label: ?[*:0]const u8, size: Vec2) bool;
@@ -2664,8 +2714,8 @@ extern fn ImGui_RadioButton(label: ?[*:0]const u8, active: bool) bool;
 extern fn ImGui_RadioButtonIntPtr(label: ?[*:0]const u8, v: ?*c_int, v_button: c_int) bool;
 extern fn ImGui_ProgressBar(fraction: f32, size_arg: Vec2, overlay: ?[*:0]const u8) void;
 extern fn ImGui_Bullet() void;
-extern fn ImGui_Image(user_texture_id: TextureID, size: Vec2) void;
-extern fn ImGui_ImageEx(user_texture_id: TextureID, size: Vec2, uv0: Vec2, uv1: Vec2, tint_col: Vec4, border_col: Vec4) void;
+extern fn ImGui_Image(user_texture_id: TextureID, image_size: Vec2) void;
+extern fn ImGui_ImageEx(user_texture_id: TextureID, image_size: Vec2, uv0: Vec2, uv1: Vec2, tint_col: Vec4, border_col: Vec4) void;
 extern fn ImGui_ImageButton(str_id: ?[*:0]const u8, user_texture_id: TextureID, image_size: Vec2) bool;
 extern fn ImGui_ImageButtonEx(str_id: ?[*:0]const u8, user_texture_id: TextureID, image_size: Vec2, uv0: Vec2, uv1: Vec2, bg_col: Vec4, tint_col: Vec4) bool;
 extern fn ImGui_BeginCombo(label: ?[*:0]const u8, preview_value: ?[*:0]const u8, flags: ComboFlags) bool;
@@ -2761,15 +2811,19 @@ extern fn ImGui_ColorButton(desc_id: ?[*:0]const u8, col: Vec4, flags: ColorEdit
 extern fn ImGui_ColorButtonEx(desc_id: ?[*:0]const u8, col: Vec4, flags: ColorEditFlags, size: Vec2) bool;
 extern fn ImGui_SetColorEditOptions(flags: ColorEditFlags) void;
 extern fn ImGui_TreeNode(label: ?[*:0]const u8) bool;
-extern fn ImGui_TreeNodeStr(str_id: ?[*:0]const u8, fmt: ?[*:0]const u8, ...) bool;
-extern fn ImGui_TreeNodePtr(ptr_id: ?*anyopaque, fmt: ?[*:0]const u8, ...) bool;
-extern fn ImGui_TreeNodeV(str_id: ?[*:0]const u8, fmt: ?[*:0]const u8, args: c.va_list) bool;
-extern fn ImGui_TreeNodeVPtr(ptr_id: ?*anyopaque, fmt: ?[*:0]const u8, args: c.va_list) bool;
+extern fn ImGui_TreeNodeStr(str_id: ?[*:0]const u8, fmt: [*:0]const u8, ...) bool;
+extern fn ImGui_TreeNodeStrUnformatted(str_id: ?[*:0]const u8, text: ?[*:0]const u8) bool;
+extern fn ImGui_TreeNodePtr(ptr_id: ?*anyopaque, fmt: [*:0]const u8, ...) bool;
+extern fn ImGui_TreeNodePtrUnformatted(ptr_id: ?*anyopaque, text: ?[*:0]const u8) bool;
+extern fn ImGui_TreeNodeV(str_id: ?[*:0]const u8, fmt: [*:0]const u8, args: c.va_list) bool;
+extern fn ImGui_TreeNodeVPtr(ptr_id: ?*anyopaque, fmt: [*:0]const u8, args: c.va_list) bool;
 extern fn ImGui_TreeNodeEx(label: ?[*:0]const u8, flags: TreeNodeFlags) bool;
-extern fn ImGui_TreeNodeExStr(str_id: ?[*:0]const u8, flags: TreeNodeFlags, fmt: ?[*:0]const u8, ...) bool;
-extern fn ImGui_TreeNodeExPtr(ptr_id: ?*anyopaque, flags: TreeNodeFlags, fmt: ?[*:0]const u8, ...) bool;
-extern fn ImGui_TreeNodeExV(str_id: ?[*:0]const u8, flags: TreeNodeFlags, fmt: ?[*:0]const u8, args: c.va_list) bool;
-extern fn ImGui_TreeNodeExVPtr(ptr_id: ?*anyopaque, flags: TreeNodeFlags, fmt: ?[*:0]const u8, args: c.va_list) bool;
+extern fn ImGui_TreeNodeExStr(str_id: ?[*:0]const u8, flags: TreeNodeFlags, fmt: [*:0]const u8, ...) bool;
+extern fn ImGui_TreeNodeExStrUnformatted(str_id: ?[*:0]const u8, flags: TreeNodeFlags, text: ?[*:0]const u8) bool;
+extern fn ImGui_TreeNodeExPtr(ptr_id: ?*anyopaque, flags: TreeNodeFlags, fmt: [*:0]const u8, ...) bool;
+extern fn ImGui_TreeNodeExPtrUnformatted(ptr_id: ?*anyopaque, flags: TreeNodeFlags, text: ?[*:0]const u8) bool;
+extern fn ImGui_TreeNodeExV(str_id: ?[*:0]const u8, flags: TreeNodeFlags, fmt: [*:0]const u8, args: c.va_list) bool;
+extern fn ImGui_TreeNodeExVPtr(ptr_id: ?*anyopaque, flags: TreeNodeFlags, fmt: [*:0]const u8, args: c.va_list) bool;
 extern fn ImGui_TreePush(str_id: ?[*:0]const u8) void;
 extern fn ImGui_TreePushPtr(ptr_id: ?*anyopaque) void;
 extern fn ImGui_TreePop() void;
@@ -2806,11 +2860,13 @@ extern fn ImGui_MenuItemEx(label: ?[*:0]const u8, shortcut: ?[*:0]const u8, sele
 extern fn ImGui_MenuItemBoolPtr(label: ?[*:0]const u8, shortcut: ?[*:0]const u8, p_selected: ?*bool, enabled: bool) bool;
 extern fn ImGui_BeginTooltip() bool;
 extern fn ImGui_EndTooltip() void;
-extern fn ImGui_SetTooltip(fmt: ?[*:0]const u8, ...) void;
-extern fn ImGui_SetTooltipV(fmt: ?[*:0]const u8, args: c.va_list) void;
+extern fn ImGui_SetTooltip(fmt: [*:0]const u8, ...) void;
+extern fn ImGui_SetTooltipUnformatted(text: ?[*:0]const u8) void;
+extern fn ImGui_SetTooltipV(fmt: [*:0]const u8, args: c.va_list) void;
 extern fn ImGui_BeginItemTooltip() bool;
-extern fn ImGui_SetItemTooltip(fmt: ?[*:0]const u8, ...) void;
-extern fn ImGui_SetItemTooltipV(fmt: ?[*:0]const u8, args: c.va_list) void;
+extern fn ImGui_SetItemTooltip(fmt: [*:0]const u8, ...) void;
+extern fn ImGui_SetItemTooltipUnformatted(text: ?[*:0]const u8) void;
+extern fn ImGui_SetItemTooltipV(fmt: [*:0]const u8, args: c.va_list) void;
 extern fn ImGui_BeginPopup(str_id: ?[*:0]const u8, flags: WindowFlags) bool;
 extern fn ImGui_BeginPopupModal(name: ?[*:0]const u8, p_open: ?*bool, flags: WindowFlags) bool;
 extern fn ImGui_EndPopup() void;
@@ -2866,8 +2922,9 @@ extern fn ImGui_LogToFile(auto_open_depth: c_int, filename: ?[*:0]const u8) void
 extern fn ImGui_LogToClipboard(auto_open_depth: c_int) void;
 extern fn ImGui_LogFinish() void;
 extern fn ImGui_LogButtons() void;
-extern fn ImGui_LogText(fmt: ?[*:0]const u8, ...) void;
-extern fn ImGui_LogTextV(fmt: ?[*:0]const u8, args: c.va_list) void;
+extern fn ImGui_LogText(fmt: [*:0]const u8, ...) void;
+extern fn ImGui_LogTextUnformatted(text: ?[*:0]const u8) void;
+extern fn ImGui_LogTextV(fmt: [*:0]const u8, args: c.va_list) void;
 extern fn ImGui_BeginDragDropSource(flags: DragDropFlags) bool;
 extern fn ImGui_SetDragDropPayload(type: ?[*:0]const u8, data: ?*anyopaque, sz: usize, cond: Cond) bool;
 extern fn ImGui_EndDragDropSource() void;
@@ -2952,6 +3009,8 @@ extern fn ImGui_LoadIniSettingsFromMemory(ini_data: ?[*:0]const u8, ini_size: us
 extern fn ImGui_SaveIniSettingsToDisk(ini_filename: ?[*:0]const u8) void;
 extern fn ImGui_SaveIniSettingsToMemory(out_ini_size: ?*usize) ?[*:0]const u8;
 extern fn ImGui_DebugTextEncoding(text: ?[*:0]const u8) void;
+extern fn ImGui_DebugFlashStyleColor(idx: Col) void;
+extern fn ImGui_DebugStartItemPicker() void;
 extern fn ImGui_DebugCheckVersionAndDataLayout(version_str: ?[*:0]const u8, sz_io: usize, sz_style: usize, sz_vec2: usize, sz_vec4: usize, sz_drawvert: usize, sz_drawidx: usize) bool;
 extern fn ImGui_SetAllocatorFunctions(alloc_func: MemAllocFunc, free_func: MemFreeFunc, user_data: ?*anyopaque) void;
 extern fn ImGui_GetAllocatorFunctions(p_alloc_func: ?*MemAllocFunc, p_free_func: ?*MemFreeFunc, p_user_data: ?*?*anyopaque) void;
@@ -2999,8 +3058,8 @@ extern fn ImGuiTextBuffer_clear(self: *TextBuffer) void;
 extern fn ImGuiTextBuffer_reserve(self: *TextBuffer, capacity: c_int) void;
 extern fn ImGuiTextBuffer_c_str(self: *const TextBuffer) ?[*:0]const u8;
 extern fn ImGuiTextBuffer_append(self: *TextBuffer, str: ?[*:0]const u8, str_end: ?[*:0]const u8) void;
-extern fn ImGuiTextBuffer_appendf(self: *TextBuffer, fmt: ?[*:0]const u8, ...) void;
-extern fn ImGuiTextBuffer_appendfv(self: *TextBuffer, fmt: ?[*:0]const u8, args: c.va_list) void;
+extern fn ImGuiTextBuffer_appendf(self: *TextBuffer, fmt: [*:0]const u8, ...) void;
+extern fn ImGuiTextBuffer_appendfv(self: *TextBuffer, fmt: [*:0]const u8, args: c.va_list) void;
 extern fn ImGuiStorage_Clear(self: *Storage) void;
 extern fn ImGuiStorage_GetInt(self: *const Storage, key: ID, default_val: c_int) c_int;
 extern fn ImGuiStorage_SetInt(self: *Storage, key: ID, val: c_int) void;
@@ -3055,18 +3114,19 @@ extern fn ImDrawList_AddCircleFilled(self: *DrawList, center: Vec2, radius: f32,
 extern fn ImDrawList_AddNgon(self: *DrawList, center: Vec2, radius: f32, col: U32, num_segments: c_int) void;
 extern fn ImDrawList_AddNgonEx(self: *DrawList, center: Vec2, radius: f32, col: U32, num_segments: c_int, thickness: f32) void;
 extern fn ImDrawList_AddNgonFilled(self: *DrawList, center: Vec2, radius: f32, col: U32, num_segments: c_int) void;
-extern fn ImDrawList_AddEllipse(self: *DrawList, center: Vec2, radius_x: f32, radius_y: f32, col: U32) void;
-extern fn ImDrawList_AddEllipseEx(self: *DrawList, center: Vec2, radius_x: f32, radius_y: f32, col: U32, rot: f32, num_segments: c_int, thickness: f32) void;
-extern fn ImDrawList_AddEllipseFilled(self: *DrawList, center: Vec2, radius_x: f32, radius_y: f32, col: U32) void;
-extern fn ImDrawList_AddEllipseFilledEx(self: *DrawList, center: Vec2, radius_x: f32, radius_y: f32, col: U32, rot: f32, num_segments: c_int) void;
+extern fn ImDrawList_AddEllipse(self: *DrawList, center: Vec2, radius: Vec2, col: U32) void;
+extern fn ImDrawList_AddEllipseEx(self: *DrawList, center: Vec2, radius: Vec2, col: U32, rot: f32, num_segments: c_int, thickness: f32) void;
+extern fn ImDrawList_AddEllipseFilled(self: *DrawList, center: Vec2, radius: Vec2, col: U32) void;
+extern fn ImDrawList_AddEllipseFilledEx(self: *DrawList, center: Vec2, radius: Vec2, col: U32, rot: f32, num_segments: c_int) void;
 extern fn ImDrawList_AddText(self: *DrawList, pos: Vec2, col: U32, text_begin: ?[*:0]const u8) void;
 extern fn ImDrawList_AddTextEx(self: *DrawList, pos: Vec2, col: U32, text_begin: ?[*:0]const u8, text_end: ?[*:0]const u8) void;
 extern fn ImDrawList_AddTextImFontPtr(self: *DrawList, font: ?*const Font, font_size: f32, pos: Vec2, col: U32, text_begin: ?[*:0]const u8) void;
 extern fn ImDrawList_AddTextImFontPtrEx(self: *DrawList, font: ?*const Font, font_size: f32, pos: Vec2, col: U32, text_begin: ?[*:0]const u8, text_end: ?[*:0]const u8, wrap_width: f32, cpu_fine_clip_rect: ?*const Vec4) void;
-extern fn ImDrawList_AddPolyline(self: *DrawList, points: ?*const Vec2, num_points: c_int, col: U32, flags: DrawFlags, thickness: f32) void;
-extern fn ImDrawList_AddConvexPolyFilled(self: *DrawList, points: ?*const Vec2, num_points: c_int, col: U32) void;
 extern fn ImDrawList_AddBezierCubic(self: *DrawList, p1: Vec2, p2: Vec2, p3: Vec2, p4: Vec2, col: U32, thickness: f32, num_segments: c_int) void;
 extern fn ImDrawList_AddBezierQuadratic(self: *DrawList, p1: Vec2, p2: Vec2, p3: Vec2, col: U32, thickness: f32, num_segments: c_int) void;
+extern fn ImDrawList_AddPolyline(self: *DrawList, points: ?*const Vec2, num_points: c_int, col: U32, flags: DrawFlags, thickness: f32) void;
+extern fn ImDrawList_AddConvexPolyFilled(self: *DrawList, points: ?*const Vec2, num_points: c_int, col: U32) void;
+extern fn ImDrawList_AddConcavePolyFilled(self: *DrawList, points: ?*const Vec2, num_points: c_int, col: U32) void;
 extern fn ImDrawList_AddImage(self: *DrawList, user_texture_id: TextureID, p_min: Vec2, p_max: Vec2) void;
 extern fn ImDrawList_AddImageEx(self: *DrawList, user_texture_id: TextureID, p_min: Vec2, p_max: Vec2, uv_min: Vec2, uv_max: Vec2, col: U32) void;
 extern fn ImDrawList_AddImageQuad(self: *DrawList, user_texture_id: TextureID, p1: Vec2, p2: Vec2, p3: Vec2, p4: Vec2) void;
@@ -3076,11 +3136,12 @@ extern fn ImDrawList_PathClear(self: *DrawList) void;
 extern fn ImDrawList_PathLineTo(self: *DrawList, pos: Vec2) void;
 extern fn ImDrawList_PathLineToMergeDuplicate(self: *DrawList, pos: Vec2) void;
 extern fn ImDrawList_PathFillConvex(self: *DrawList, col: U32) void;
+extern fn ImDrawList_PathFillConcave(self: *DrawList, col: U32) void;
 extern fn ImDrawList_PathStroke(self: *DrawList, col: U32, flags: DrawFlags, thickness: f32) void;
 extern fn ImDrawList_PathArcTo(self: *DrawList, center: Vec2, radius: f32, a_min: f32, a_max: f32, num_segments: c_int) void;
 extern fn ImDrawList_PathArcToFast(self: *DrawList, center: Vec2, radius: f32, a_min_of_12: c_int, a_max_of_12: c_int) void;
-extern fn ImDrawList_PathEllipticalArcTo(self: *DrawList, center: Vec2, radius_x: f32, radius_y: f32, rot: f32, a_min: f32, a_max: f32) void;
-extern fn ImDrawList_PathEllipticalArcToEx(self: *DrawList, center: Vec2, radius_x: f32, radius_y: f32, rot: f32, a_min: f32, a_max: f32, num_segments: c_int) void;
+extern fn ImDrawList_PathEllipticalArcTo(self: *DrawList, center: Vec2, radius: Vec2, rot: f32, a_min: f32, a_max: f32) void;
+extern fn ImDrawList_PathEllipticalArcToEx(self: *DrawList, center: Vec2, radius: Vec2, rot: f32, a_min: f32, a_max: f32, num_segments: c_int) void;
 extern fn ImDrawList_PathBezierCubicCurveTo(self: *DrawList, p2: Vec2, p3: Vec2, p4: Vec2, num_segments: c_int) void;
 extern fn ImDrawList_PathBezierQuadraticCurveTo(self: *DrawList, p2: Vec2, p3: Vec2, num_segments: c_int) void;
 extern fn ImDrawList_PathRect(self: *DrawList, rect_min: Vec2, rect_max: Vec2, rounding: f32, flags: DrawFlags) void;
@@ -3168,7 +3229,6 @@ extern fn ImFont_SetGlyphVisible(self: *Font, c: Wchar, visible: bool) void;
 extern fn ImFont_IsGlyphRangeUnused(self: *Font, c_begin: c_uint, c_last: c_uint) bool;
 extern fn ImGuiViewport_GetCenter(self: *const Viewport) Vec2;
 extern fn ImGuiViewport_GetWorkCenter(self: *const Viewport) Vec2;
-extern fn ImGui_GetKeyIndex(key: Key) Key;
 
 //-----------------------------------------------------------------------------
 // Internal
