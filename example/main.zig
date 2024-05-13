@@ -1,14 +1,16 @@
-const std = @import("std");
 const mach = @import("mach");
-
-const Game = @import("Game.zig");
-const ImGui = @import("imgui");
 
 // The global list of Mach modules registered for use in our application.
 pub const modules = .{
-    mach.Engine,
-    Game,
-    ImGui,
+    mach.Core,
+    @import("App.zig"),
+    @import("imgui"),
 };
 
-pub const App = mach.App;
+pub fn main() !void {
+    // Initialize mach.Core
+    try mach.core.initModule();
+
+    // Main loop
+    while (try mach.core.tick()) {}
+}

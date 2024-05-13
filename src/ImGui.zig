@@ -2,7 +2,7 @@ const std = @import("std");
 pub const c = @import("cimgui.zig");
 const mach = @import("mach");
 const core = mach.core;
-const gpu = core.gpu;
+const gpu = mach.gpu;
 
 pub const name = .imgui;
 pub const Mod = mach.Mod(@This());

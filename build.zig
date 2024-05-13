@@ -7,8 +7,12 @@ pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
     const imgui = b.dependency("imgui", .{});
-    const mach_dep = b.dependency("mach", .{ .target = target, .optimize = optimize });
     const use_freetype = b.option(bool, "use_freetype", "Use Freetype") orelse false;
+
+    const mach_dep = b.dependency("mach", .{
+        .target = target,
+        .optimize = optimize,
+    });
 
     const module = b.addModule("mach_imgui", .{
         .root_source_file = .{ .path = "src/ImGui.zig" },
@@ -39,18 +43,26 @@ pub fn build(b: *std.Build) !void {
     module.addIncludePath(.{ .path = "src" });
 
     // Example
-    const app = try mach.CoreApp.init(b, mach_dep.builder, .{
+    const exe = b.addExecutable(.{
         .name = "mach-imgui-example",
-        .src = "example/main.zig",
+        .root_source_file = .{ .path = "example/main.zig" },
         .target = target,
-        .deps = &[_]std.Build.Module.Import{
-            .{ .name = "imgui", .module = module },
-        },
         .optimize = optimize,
     });
+    b.installArtifact(exe);
 
-    const run_step = b.step("run", "Run the example");
-    run_step.dependOn(&app.run.step);
+    // Add Mach dependency
+    exe.root_module.addImport("mach", mach_dep.module("mach"));
+    @import("mach").link(mach_dep.builder, exe);
+
+    // Add imgui dependency
+    exe.root_module.addImport("imgui", module);
+
+    const run_cmd = b.addRunArtifact(exe);
+    run_cmd.step.dependOn(b.getInstallStep());
+
+    const run_step = b.step("run", "Run the app");
+    run_step.dependOn(&run_cmd.step);
 
     // Generator
     const generator_exe = b.addExecutable(.{
