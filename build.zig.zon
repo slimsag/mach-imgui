@@ -8,12 +8,12 @@
     .version = "0.1.0",
     .dependencies = .{
         .mach = .{
-            .url = "https://pkg.machengine.org/mach/205a1f33db0efe40a218e793937e7b686ac117dc.tar.gz",
-            .hash = "1220fb34272245785a575f127caa02a1debc3e542c99c48c34dba413962543eea279",
+            .url = "https://pkg.machengine.org/mach/b72f0e11b6d292c2b60789359a61f7ee6d7dc371.tar.gz",
+            .hash = "122015e1dac4afaf275f7f2adde3814e6a27f5799cbef96bb487ee305f7e33f4dca3",
         },
         .freetype = .{
-            .url = "https://pkg.machengine.org/freetype/398638fd1cb723e478658ea371fe3be1a4dce0ae.tar.gz",
-            .hash = "12208c57b72e3fb5c8d5d3e667e2e21ca1d9e2b6fc3f84182b320f63933f591823da",
+            .url = "https://pkg.machengine.org/freetype/e8c5b37f320db03acba410d993441815bc809606.tar.gz",
+            .hash = "1220babb7939707ca390b934657dfd3c8c3a6a78cc9442e4cbd43e3f9ffd49daec9e",
         },
         .imgui = .{
             .url = "https://github.com/ocornut/imgui/archive/refs/tags/v1.90.5.tar.gz",

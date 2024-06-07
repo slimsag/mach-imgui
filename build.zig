@@ -15,7 +15,7 @@ pub fn build(b: *std.Build) !void {
     });
 
     const module = b.addModule("mach_imgui", .{
-        .root_source_file = .{ .path = "src/ImGui.zig" },
+        .root_source_file = b.path("src/ImGui.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -33,19 +33,19 @@ pub fn build(b: *std.Build) !void {
     }
 
     module.addImport("mach", mach_dep.module("mach"));
-    module.addCSourceFile(.{ .file = .{ .path = "src/cimgui.cpp" }, .flags = flags.items });
+    module.addCSourceFile(.{ .file = b.path("src/cimgui.cpp"), .flags = flags.items });
     module.addCSourceFile(.{ .file = imgui.path("imgui.cpp"), .flags = flags.items });
     module.addCSourceFile(.{ .file = imgui.path("imgui_widgets.cpp"), .flags = flags.items });
     module.addCSourceFile(.{ .file = imgui.path("imgui_tables.cpp"), .flags = flags.items });
     module.addCSourceFile(.{ .file = imgui.path("imgui_draw.cpp"), .flags = flags.items });
     module.addCSourceFile(.{ .file = imgui.path("imgui_demo.cpp"), .flags = flags.items });
     module.addIncludePath(imgui.path("."));
-    module.addIncludePath(.{ .path = "src" });
+    module.addIncludePath(b.path("src"));
 
     // Example
     const exe = b.addExecutable(.{
         .name = "mach-imgui-example",
-        .root_source_file = .{ .path = "example/main.zig" },
+        .root_source_file = b.path("example/main.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -67,7 +67,7 @@ pub fn build(b: *std.Build) !void {
     // Generator
     const generator_exe = b.addExecutable(.{
         .name = "mach-imgui-generator",
-        .root_source_file = .{ .path = "tools/generate_binding.zig" },
+        .root_source_file = b.path("tools/generate_binding.zig"),
         .target = target,
         .optimize = optimize,
     });
